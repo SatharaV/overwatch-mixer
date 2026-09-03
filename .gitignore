@@ -1,0 +1,22 @@
+# Python bytecode y cache
+__pycache__/
+*.py[cod]
+
+# Compilaciones y ejecutables
+build/
+dist/
+*.spec
+
+# Entornos virtuales
+venv/
+.venv/
+env/
+
+# Configuraciones locales
+.vscode/
+.idea/
+.pytest_cache/
+*.log
+
+# Scripts locales
+clean_and_prep.py

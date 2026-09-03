@@ -1,0 +1,29 @@
+{
+  "game_mode": "5v5",
+  "team1_name": "Gatitos",
+  "team2_name": "Perritas",
+  "shuffle_mode": "max_variety",
+  "diversity_candidates": 50,
+  "history_size": 10,
+  "avoid_recent_maps": 3,
+  "composition_5v5": {
+    "tank": 1,
+    "damage": 2,
+    "support": 2
+  },
+  "composition_6v6": {
+    "tank": 2,
+    "damage": 2,
+    "support": 2
+  },
+  "auto_roles": true,
+  "auto_map": true,
+  "auto_bans": true,
+  "max_bans": 5,
+  "max_bans_per_role": 2,
+  "window_geometry": {},
+  "team1_color": "#00B4FF",
+  "team2_color": "#FF4444",
+  "slot_font_size": 15,
+  "dnd_cross_team_swap": true
+}
