@@ -16,7 +16,7 @@
     "damage": 2,
     "support": 2
   },
-  "auto_roles": true,
+  "auto_roles": false,
   "auto_map": true,
   "auto_bans": true,
   "max_bans": 5,
@@ -25,5 +25,8 @@
   "team1_color": "#00B4FF",
   "team2_color": "#FF4444",
   "slot_font_size": 15,
-  "dnd_cross_team_swap": true
+  "dnd_cross_team_swap": true,
+  "ban_portrait_size": 44,
+  "bans_visible_rows": 3,
+  "tier_export_ratio": "16:9"
 }

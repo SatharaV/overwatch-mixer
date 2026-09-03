@@ -411,6 +411,12 @@ class SettingsDialog(QDialog):
                 self.cb_slot_align.setCurrentIndex(i)
                 break
 
+        curr_tier_ratio = getattr(s, "tier_export_ratio", "16:9")
+        if hasattr(self, "cb_tier_export_ratio"):
+            for i in range(self.cb_tier_export_ratio.count()):
+                if self.cb_tier_export_ratio.itemData(i) == curr_tier_ratio:
+                    self.cb_tier_export_ratio.setCurrentIndex(i)
+                    break
         self.spin_tier_hero_size.setValue(getattr(s, "tier_hero_size", 76))
         self.spin_tier_map_w.setValue(getattr(s, "tier_map_width", 125))
         self.spin_tier_map_h.setValue(getattr(s, "tier_map_height", 75))
@@ -710,6 +716,8 @@ class SettingsDialog(QDialog):
         s.slot_font_size = self.spin_slot_font_size.value()
         s.slot_font_weight = self.cb_slot_font_weight.currentData()
 
+        if hasattr(self, "cb_tier_export_ratio"):
+            s.tier_export_ratio = self.cb_tier_export_ratio.currentData()
         s.tier_hero_size = self.spin_tier_hero_size.value()
         s.tier_map_width = self.spin_tier_map_w.value()
         s.tier_map_height = self.spin_tier_map_h.value()

@@ -257,24 +257,87 @@ class BenchSavedOperationsMixin:
         return added
 
     def import_saved(self: RosterController, path: str):
+        from owervach_tmixer.core.models import Player
         try:
-            names = []
+            added = 0
+            updated = 0
             if path.endswith(".json"):
                 with open(path, encoding="utf-8") as f:
-                    for entry in json.load(f):
-                        if isinstance(entry, str):
-                            names.append(entry)
-                        elif isinstance(entry, dict) and entry.get("name"):
-                            names.append(entry["name"])
+                    raw_data = json.load(f)
+
+                if not isinstance(raw_data, list):
+                    raise ValueError("Formato JSON inválido: se esperaba una lista de jugadores.")
+
+                saved_by_name = {p.name.casefold(): p for p in self.roster.saved}
+
+                for entry in raw_data:
+                    if isinstance(entry, dict) and entry.get("name"):
+                        imported_p = Player.from_dict(entry)
+                    elif isinstance(entry, str) and entry.strip():
+                        imported_p = Player(name=entry.strip())
+                    else:
+                        continue
+
+                    key = imported_p.name.casefold()
+                    if key in saved_by_name:
+                        target = saved_by_name[key]
+                        target.custom_color = imported_p.custom_color
+                        target.custom_title = imported_p.custom_title
+                        target.mmr = imported_p.mmr
+                        target.mmr_tank = imported_p.mmr_tank
+                        target.mmr_damage = imported_p.mmr_damage
+                        target.mmr_support = imported_p.mmr_support
+                        target.auto_mmr_enabled = imported_p.auto_mmr_enabled
+                        target.calculated_mmr = imported_p.calculated_mmr
+                        target.calculated_mmr_tank = imported_p.calculated_mmr_tank
+                        target.calculated_mmr_damage = imported_p.calculated_mmr_damage
+                        target.calculated_mmr_support = imported_p.calculated_mmr_support
+                        target.wins = imported_p.wins
+                        target.losses = imported_p.losses
+                        target.draws = imported_p.draws
+                        if imported_p.fixed_role and imported_p.role:
+                            target.role = imported_p.role
+                            target.fixed_role = True
+                        if imported_p.fixed_team is not None:
+                            target.fixed_team = imported_p.fixed_team
+                        updated += 1
+                    else:
+                        self.roster.saved.append(imported_p)
+                        saved_by_name[key] = imported_p
+                        added += 1
+
+                    # Propagar color y MMR a jugadores ya desplegados en partida o banca
+                    for active_p in self.roster.active_players() + self.roster.bench:
+                        if active_p.name.casefold() == key:
+                            active_p.custom_color = imported_p.custom_color
+                            active_p.custom_title = imported_p.custom_title
+                            active_p.mmr = imported_p.mmr
+                            active_p.mmr_tank = imported_p.mmr_tank
+                            active_p.mmr_damage = imported_p.mmr_damage
+                            active_p.mmr_support = imported_p.mmr_support
+                            active_p.auto_mmr_enabled = imported_p.auto_mmr_enabled
+                            active_p.calculated_mmr = imported_p.calculated_mmr
+                            active_p.calculated_mmr_tank = imported_p.calculated_mmr_tank
+                            active_p.calculated_mmr_damage = imported_p.calculated_mmr_damage
+                            active_p.calculated_mmr_support = imported_p.calculated_mmr_support
+                            active_p.wins = imported_p.wins
+                            active_p.losses = imported_p.losses
+                            active_p.draws = imported_p.draws
             else:
                 with open(path, encoding="utf-8") as f:
                     names = [line.strip() for line in f if line.strip()]
-            added = self._add_names_to_saved(names)
+                added = self._add_names_to_saved(names)
+
             self.after_roster_change()
-            self.win.show_toast(f"{added} jugador(es) añadido(s) a guardados.", "success")
+            msg = []
+            if added > 0:
+                msg.append(f"{added} añadido(s)")
+            if updated > 0:
+                msg.append(f"{updated} actualizado(s)")
+            desc = " y ".join(msg) if msg else "Sin cambios"
+            self.win.show_toast(f"✅ Tokens importados: {desc}", "success")
         except Exception as exc:
             self.win.show_toast(f"No se pudo importar: {exc}", "warning")
-
     def export_saved(self: RosterController, path: str):
         try:
             if path.endswith(".json"):

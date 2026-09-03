@@ -347,18 +347,18 @@ def test_roles_toggles_exist(make_window):
     assert "Roles" in w.roles_toggle.text()
     assert "Auto" in w.randomize_roles_toggle.text() or "Randomizar" in w.randomize_roles_toggle.text()
     assert w.roles_toggle.isChecked() is True
-    assert w.randomize_roles_toggle.isChecked() is True
+    assert w.randomize_roles_toggle.isChecked() is False
     w.close()
 
 
 def test_randomize_roles_toggle_controls_reroll_button(make_window):
     w = make_window()
-    assert w.match_display.team1_widget.btn_mix_roles.isEnabled() is True
-    w.randomize_roles_toggle.setChecked(False)
-    assert w.settings_manager.settings.auto_roles is False
     assert w.match_display.team1_widget.btn_mix_roles.isEnabled() is False
     w.randomize_roles_toggle.setChecked(True)
+    assert w.settings_manager.settings.auto_roles is True
     assert w.match_display.team1_widget.btn_mix_roles.isEnabled() is True
+    w.randomize_roles_toggle.setChecked(False)
+    assert w.match_display.team1_widget.btn_mix_roles.isEnabled() is False
     w.close()
 
 
@@ -554,7 +554,7 @@ def test_startup_normalizes_show_off_auto_on(make_window, app_dir):
 def test_estado_b_6v6_after_randomized(make_window):
     w = make_window()
     w._on_mode_changed(GameMode.SIX_V_SIX)
-    w.settings_manager.update_auto_roles(True)
+    w.randomize_roles_toggle.setChecked(True)
     create_all(w, [f"P{i}" for i in range(12)])
     w._reroll_roles(1)
     assert [p.role for p in w._roster.team1_slots] != [
@@ -648,6 +648,11 @@ def test_mix_roles_button_in_team_header_exists(make_window):
     w = make_window()
     for widget in (w.match_display.team1_widget, w.match_display.team2_widget):
         assert "Roles" in widget.btn_mix_roles.text() or "Mezclar" in widget.btn_mix_roles.text()
+        # Con Auto desactivado por defecto de fábrica, el botón inicia deshabilitado
+        assert widget.btn_mix_roles.isEnabled() is False
+    # Al activar Auto, se habilita
+    w.randomize_roles_toggle.setChecked(True)
+    for widget in (w.match_display.team1_widget, w.match_display.team2_widget):
         assert widget.btn_mix_roles.isEnabled() is True
     w.close()
 

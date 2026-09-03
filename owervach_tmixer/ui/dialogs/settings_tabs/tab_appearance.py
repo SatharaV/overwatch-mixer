@@ -130,6 +130,12 @@ def build_appearance_tab(dialog, layout: QVBoxLayout):
     form_tier = QFormLayout(box_tier)
     form_tier.setSpacing(10)
 
+    dialog.cb_tier_export_ratio = QComboBox()
+    dialog.cb_tier_export_ratio.setView(QListView())
+    dialog.cb_tier_export_ratio.addItem("16:9 (Panorámico / Redes Sociales) — Recomendado", "16:9")
+    dialog.cb_tier_export_ratio.addItem("Automático (Ajuste libre al contenido)", "auto")
+    form_tier.addRow("Formato al exportar imagen:", dialog.cb_tier_export_ratio)
+
     dialog.spin_tier_hero_size = QSpinBox()
     dialog.spin_tier_hero_size.setRange(50, 120)
     dialog.spin_tier_hero_size.setValue(76)

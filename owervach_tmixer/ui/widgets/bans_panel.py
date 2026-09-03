@@ -160,7 +160,7 @@ class BansPanel(QFrame):
         self._expanded = True
         self._banned_names: list[str] = []
         self._portrait_size = DEFAULT_PORTRAIT
-        self._visible_rows = 2
+        self._visible_rows = 3
         self.setObjectName("bansPanel")
         self.setMinimumHeight(44)
 

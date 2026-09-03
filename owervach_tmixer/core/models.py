@@ -317,7 +317,7 @@ class MatchSettings:
     composition_6v6: TeamComposition = field(
         default_factory=lambda: TeamComposition(tank=2, damage=2, support=2)
     )
-    auto_roles: bool = True
+    auto_roles: bool = False
     show_roles: bool = True
     balance_by_mmr: bool = False
     auto_calibrate_mmr: bool = True
@@ -327,8 +327,8 @@ class MatchSettings:
     auto_bans: bool = True
     max_bans: int = 5
     max_bans_per_role: int = 2
-    ban_portrait_size: int = 48
-    bans_visible_rows: int = 2
+    ban_portrait_size: int = 44
+    bans_visible_rows: int = 3
     dnd_cross_team_swap: bool = True
     accent_color: str = "#61ab02"
     map_card_size: str = "medium"
@@ -348,6 +348,7 @@ class MatchSettings:
     tier_map_font_size: int = 14
     tier_player_width: int = 125
     tier_player_height: int = 75
+    tier_export_ratio: str = '16:9'
     last_selected_map: dict | None = None
     category_value_orders: dict[str, list[str]] = field(default_factory=dict)
     settings_tab_order: list[str] = field(default_factory=lambda: [
@@ -402,6 +403,7 @@ class MatchSettings:
             "tier_map_font_size": self.tier_map_font_size,
             "tier_player_width": self.tier_player_width,
             "tier_player_height": self.tier_player_height,
+            "tier_export_ratio": getattr(self, "tier_export_ratio", "16:9"),
             "last_selected_map": self.last_selected_map,
             "category_value_orders": self.category_value_orders,
             "settings_tab_order": self.settings_tab_order,
@@ -428,8 +430,8 @@ class MatchSettings:
             composition_6v6=TeamComposition.from_dict(
                 data.get("composition_6v6", {"tank": 2, "damage": 2, "support": 2})
             ),
-            auto_roles=data.get("auto_roles", True),
-            show_roles=data.get("show_roles", data.get("auto_roles", True)),
+            auto_roles=data.get("auto_roles", False),
+            show_roles=data.get("show_roles", True),
             balance_by_mmr=data.get("balance_by_mmr", False),
             auto_calibrate_mmr=data.get("auto_calibrate_mmr", True),
             randomize_team_names=data.get("randomize_team_names", False),
@@ -438,8 +440,8 @@ class MatchSettings:
             auto_bans=data.get("auto_bans", True),
             max_bans=raw_max_bans if (raw_max_bans is not None and raw_max_bans > 0) else 5,
             max_bans_per_role=raw_per_role if (raw_per_role is not None and raw_per_role > 0) else 2,
-            ban_portrait_size=data.get("ban_portrait_size", 48),
-            bans_visible_rows=data.get("bans_visible_rows", 2),
+            ban_portrait_size=data.get("ban_portrait_size", 44),
+            bans_visible_rows=data.get("bans_visible_rows", 3),
             dnd_cross_team_swap=data.get("dnd_cross_team_swap", True),
             accent_color=data.get("accent_color", "#61ab02"),
             map_card_size=data.get("map_card_size", "medium"),
@@ -458,6 +460,7 @@ class MatchSettings:
             tier_map_font_size=data.get("tier_map_font_size", 14),
             tier_player_width=data.get("tier_player_width", 125),
             tier_player_height=data.get("tier_player_height", 75),
+            tier_export_ratio=data.get("tier_export_ratio", "16:9"),
             last_selected_map=data.get("last_selected_map"),
             category_value_orders=data.get("category_value_orders", {}),
             settings_tab_order=data.get("settings_tab_order", ["appearance", "content", "shuffle", "roles_bans", "maps", "players", "backup", "about", "about"]),

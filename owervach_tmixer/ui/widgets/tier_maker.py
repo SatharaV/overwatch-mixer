@@ -749,7 +749,10 @@ class TierMakerWidget(QWidget):
         self._clear_all_drag_highlights()
 
     def render_clean_tierlist_pixmap(self):
-        return render_clean_tierlist_pixmap(self.rows, self.canvas_widget, self._current_mode)
+        p_win = self._parent_window or self.window()
+        s = getattr(p_win, "settings_manager", None)
+        ratio = getattr(getattr(s, "settings", None), "tier_export_ratio", "16:9")
+        return render_clean_tierlist_pixmap(self.rows, self.canvas_widget, self._current_mode, export_ratio=ratio)
 
     def _copy_tierlist_to_clipboard(self):
         pix = self.render_clean_tierlist_pixmap()

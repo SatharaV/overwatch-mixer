@@ -78,8 +78,8 @@ class SavedChip(QFrame):
 
     """A single draggable saved-player chip with custom color and live status dot."""
 
-    def __init__(self, panel: SavedPanel, player: Player, in_active: bool = False, in_bench: bool = False):
-        super().__init__(panel)
+    def __init__(self, panel: SavedPanel, player: Player, in_active: bool = False, in_bench: bool = False, parent: QWidget | None = None):
+        super().__init__(parent or panel)
         self._panel = panel
         self.player = player
         self.name = player.name
@@ -405,6 +405,28 @@ class SavedPanel(QFrame):
         self.setAcceptDrops(True)
         self.apply_theme()
 
+    def _relayout_pool(self):
+        if not hasattr(self, "pool_scroll") or not hasattr(self, "pool_layout"):
+            return
+        vw = self.pool_scroll.viewport().width() if self.pool_scroll.viewport() else 0
+        if vw <= 0 and hasattr(self, "pool"):
+            vw = self.pool.width()
+        if vw <= 0:
+            vw = self.width() - 24
+        if vw > 0:
+            self.pool.resize(vw, max(60, self.pool.height()))
+            self.pool_layout.setGeometry(self.pool.rect())
+        self.pool.updateGeometry()
+        self.pool.update()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self._relayout_pool()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._relayout_pool()
+
     def apply_theme(self):
         accent = theme.accent()
         self.setStyleSheet(f"""
@@ -550,9 +572,10 @@ class SavedPanel(QFrame):
             p_fold = p.name.casefold()
             in_act = p_fold in active_lower
             in_bnc = p_fold in bench_lower
-            chip = SavedChip(self, p, in_active=in_act, in_bench=in_bnc)
+            chip = SavedChip(self, p, in_active=in_act, in_bench=in_bnc, parent=self.pool)
             self.pool_layout.addWidget(chip)
             self.chips.append(chip)
+        self._relayout_pool()
 
     def _on_add(self):
         name = self.add_input.text().strip()
@@ -773,11 +796,14 @@ class SavedPanel(QFrame):
     def _open_properties_modal(self, chip: SavedChip):
         dialog = PlayerPropertiesDialog(chip.player, self.window())
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            gen, tank, dps, sup = dialog.get_data()
+            data = dialog.get_data()
+            gen, tank, dps, sup = data[:4]
+            auto_mmr = data[4] if len(data) > 4 else True
             chip.player.mmr = gen
             chip.player.mmr_tank = tank
             chip.player.mmr_damage = dps
             chip.player.mmr_support = sup
+            chip.player.auto_mmr_enabled = auto_mmr
             chip.label.setText(chip._chip_text())
             self.player_role_mmr_changed.emit(chip.name, None, gen)
 

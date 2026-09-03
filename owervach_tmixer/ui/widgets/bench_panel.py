@@ -667,11 +667,14 @@ class BenchPanel(QFrame):
     def _open_properties_modal(self, chip: _BenchChip):
         dialog = PlayerPropertiesDialog(chip.player, self.window())
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            gen, tank, dps, sup = dialog.get_data()
+            data = dialog.get_data()
+            gen, tank, dps, sup = data[:4]
+            auto_mmr = data[4] if len(data) > 4 else True
             chip.player.mmr = gen
             chip.player.mmr_tank = tank
             chip.player.mmr_damage = dps
             chip.player.mmr_support = sup
+            chip.player.auto_mmr_enabled = auto_mmr
             chip.indicator.setText(chip._indicators())
             self.player_role_mmr_changed.emit(chip.name, None, gen)
 

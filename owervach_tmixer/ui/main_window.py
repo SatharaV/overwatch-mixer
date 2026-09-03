@@ -208,7 +208,7 @@ class MainWindow(QMainWindow):
         self.bans_panel = self.dock.bans_panel
         self.bans_panel.randomize_requested.connect(self._randomize_bans_from_main)
         self.bans_panel.set_portrait_size(
-            getattr(self.settings_manager.settings, "ban_portrait_size", 48)
+            getattr(self.settings_manager.settings, "ban_portrait_size", 44)
         )
         self.main_splitter.addWidget(self.dock)
         self.main_splitter.setStretchFactor(0, 3)
@@ -469,9 +469,9 @@ class MainWindow(QMainWindow):
         self.hero_widget.set_max_bans(effective_max)
         self.hero_manager.set_max_bans_per_role(effective_role)
         self.hero_widget.set_max_bans_per_role(effective_role)
-        self.bans_panel.set_portrait_size(getattr(s, "ban_portrait_size", 48))
+        self.bans_panel.set_portrait_size(getattr(s, "ban_portrait_size", 44))
         if hasattr(self.bans_panel, "set_visible_rows"):
-            self.bans_panel.set_visible_rows(getattr(s, "bans_visible_rows", 2))
+            self.bans_panel.set_visible_rows(getattr(s, "bans_visible_rows", 3))
 
         self.match_display.set_font_preferences(
             getattr(s, "slot_font_size", 13),

@@ -312,11 +312,25 @@ class HeroWidget(QWidget):
     def showEvent(self, event):
         super().showEvent(event)
         QTimer.singleShot(0, self._relayout_grid_columns)
+        QTimer.singleShot(0, self._relayout_summary)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._relayout_grid_columns()
+        self._relayout_summary()
 
+    def _relayout_summary(self):
+        if not hasattr(self, "summary_scroll") or not hasattr(self, "summary_items"):
+            return
+        vw = self.summary_scroll.viewport().width() if self.summary_scroll.viewport() else 0
+        if vw <= 0 and hasattr(self, "summary_box"):
+            vw = self.summary_box.width() - 24
+        if vw > 0:
+            target_h = max(40, self.summary_box.height() - 32)
+            self.summary_container.resize(vw, target_h)
+            self.summary_items.setGeometry(self.summary_container.rect())
+        self.summary_container.updateGeometry()
+        self.summary_container.update()
     def _calculate_columns(self) -> int:
         w = self.scroll.viewport().width()
         if w <= 100:
@@ -499,7 +513,10 @@ class HeroWidget(QWidget):
                 item.widget().deleteLater()
 
         if not banned_set:
-            empty_lbl = QLabel("No hay héroes baneados actualmente. Pulsa '🎲 Sortear Baneos' abajo o haz clic en un héroe.")
+            empty_lbl = QLabel(
+                "No hay héroes baneados actualmente. Pulsa '🎲 Sortear Baneos' abajo o haz clic en un héroe.",
+                getattr(self, "summary_container", self),
+            )
             empty_lbl.setStyleSheet("color: #727684; font-size: 11px; font-weight: 600; padding: 4px 0; background: transparent;")
             self.summary_items.addWidget(empty_lbl)
             self.summary_box.setFixedHeight(72)
@@ -519,6 +536,8 @@ class HeroWidget(QWidget):
             else:
                 self.summary_box.setFixedHeight(150)
 
+        self._relayout_summary()
+
         if emit:
             banned_list = self.get_banned()
             self.bans_changed.emit(banned_list)
@@ -527,7 +546,7 @@ class HeroWidget(QWidget):
                 main_win._egg_manager.check_trinity_ban(banned_list, main_win)
 
     def _create_banned_chip(self, hero: Hero) -> QWidget:
-        chip = QFrame()
+        chip = QFrame(getattr(self, "summary_container", self))
         chip.setObjectName("bannedHeroChip")
         chip.setStyleSheet("""
             QFrame#bannedHeroChip {

@@ -135,6 +135,14 @@ class Roster:
                 mmr_support=saved_p.mmr_support,
                 custom_title=saved_p.custom_title,
                 custom_color=saved_p.custom_color,
+                auto_mmr_enabled=saved_p.auto_mmr_enabled,
+                calculated_mmr=saved_p.calculated_mmr,
+                calculated_mmr_tank=saved_p.calculated_mmr_tank,
+                calculated_mmr_damage=saved_p.calculated_mmr_damage,
+                calculated_mmr_support=saved_p.calculated_mmr_support,
+                wins=saved_p.wins,
+                losses=saved_p.losses,
+                draws=saved_p.draws,
             )
         else:
             player = Player(name=name)
@@ -242,6 +250,14 @@ class Roster:
                 mmr_support=saved_p.mmr_support,
                 custom_title=saved_p.custom_title,
                 custom_color=custom_color or saved_p.custom_color,
+                auto_mmr_enabled=saved_p.auto_mmr_enabled,
+                calculated_mmr=saved_p.calculated_mmr,
+                calculated_mmr_tank=saved_p.calculated_mmr_tank,
+                calculated_mmr_damage=saved_p.calculated_mmr_damage,
+                calculated_mmr_support=saved_p.calculated_mmr_support,
+                wins=saved_p.wins,
+                losses=saved_p.losses,
+                draws=saved_p.draws,
             )
         elif existing_bench:
             player = existing_bench
@@ -283,6 +299,14 @@ class Roster:
                 mmr_support=saved_p.mmr_support,
                 custom_title=saved_p.custom_title,
                 custom_color=saved_p.custom_color,
+                auto_mmr_enabled=saved_p.auto_mmr_enabled,
+                calculated_mmr=saved_p.calculated_mmr,
+                calculated_mmr_tank=saved_p.calculated_mmr_tank,
+                calculated_mmr_damage=saved_p.calculated_mmr_damage,
+                calculated_mmr_support=saved_p.calculated_mmr_support,
+                wins=saved_p.wins,
+                losses=saved_p.losses,
+                draws=saved_p.draws,
             )
         else:
             p = Player(name=name)
@@ -293,11 +317,19 @@ class Roster:
             saved_p = self.find_saved(player.name)
             if saved_p:
                 saved_p.custom_color = player.custom_color
+                saved_p.custom_title = player.custom_title
                 saved_p.mmr = player.mmr
                 saved_p.mmr_tank = player.mmr_tank
                 saved_p.mmr_damage = player.mmr_damage
                 saved_p.mmr_support = player.mmr_support
-                saved_p.custom_title = player.custom_title
+                saved_p.auto_mmr_enabled = player.auto_mmr_enabled
+                saved_p.calculated_mmr = player.calculated_mmr
+                saved_p.calculated_mmr_tank = player.calculated_mmr_tank
+                saved_p.calculated_mmr_damage = player.calculated_mmr_damage
+                saved_p.calculated_mmr_support = player.calculated_mmr_support
+                saved_p.wins = player.wins
+                saved_p.losses = player.losses
+                saved_p.draws = player.draws
                 if player.fixed_role:
                     saved_p.role = player.role
                     saved_p.fixed_role = True
@@ -315,6 +347,14 @@ class Roster:
                 mmr_support=player.mmr_support,
                 custom_title=player.custom_title,
                 custom_color=player.custom_color,
+                auto_mmr_enabled=player.auto_mmr_enabled,
+                calculated_mmr=player.calculated_mmr,
+                calculated_mmr_tank=player.calculated_mmr_tank,
+                calculated_mmr_damage=player.calculated_mmr_damage,
+                calculated_mmr_support=player.calculated_mmr_support,
+                wins=player.wins,
+                losses=player.losses,
+                draws=player.draws,
             )
         )
 
