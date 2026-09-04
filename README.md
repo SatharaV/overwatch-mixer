@@ -110,12 +110,13 @@ Según yo eso es todo.
 
 ## Descarga — Linux
 
-Vas a **Releases**, descargas el appimage y ejecutas.
+Vas a **Releases**, descargas el appimage y ejecutas, eso es todo.
 
 ---
 
-```markdown
 ## 🛠️ Instalación y Ejecución desde Código Fuente
+
+```markdown
 
 Si deseas ejecutar, modificar o compilar el proyecto directamente desde el código fuente, sigue los pasos correspondientes a tu sistema operativo.
 
