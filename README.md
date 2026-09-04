@@ -114,40 +114,131 @@ Vas a **Releases**, descargas el appimage y ejecutas.
 
 ---
 
-## Instalación desde código fuente
+```markdown
+## 🛠️ Instalación y Ejecución desde Código Fuente
 
-Para quien quiera ejecutar el proyecto directamente desde Python:
+Si deseas ejecutar, modificar o compilar el proyecto directamente desde el código fuente, sigue los pasos correspondientes a tu sistema operativo.
+
+### 📋 Requisitos Previos
+* **Python 3.10 o superior** (Recomendado: Python 3.11 a 3.14).
+* **Git** instalado en el sistema.
+
+---
+
+### 1. Clonar el Repositorio
+
+Abre tu terminal favorita y clona el proyecto:
 
 ```bash
 git clone https://github.com/SatharaV/overwatch-mixer.git
 cd overwatch-mixer
+```
 
+---
+
+### 2. Configuración del Entorno Virtual y Dependencias
+
+#### 🐧 En Linux (Arch, Ubuntu, Fedora, CachyOS, etc.)
+
+Crea el entorno virtual:
+```bash
 python -m venv venv
 ```
 
-Active el entorno virtual e instale las dependencias:
+Activa el entorno virtual según tu shell:
 
+* **En Bash o Zsh:**
+  ```bash
+  source venv/bin/activate
+  ```
+
+* **En Fish Shell:**
+  ```fish
+  source venv/bin/activate.fish
+  ```
+
+Instala las dependencias:
 ```bash
 pip install -r requirements.txt
 ```
 
-Ejecute la aplicación:
+---
+
+#### 🪟 En Windows (10 / 11)
+
+Crea el entorno virtual:
+```cmd
+python -m venv venv
+```
+
+Activa el entorno virtual según tu consola:
+
+* **En PowerShell:**
+  > *Nota: Si PowerShell te muestra un error de políticas de ejecución de scripts, ejecuta primero:*  
+  > `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
+  ```powershell
+  .\venv\Scripts\Activate.ps1
+  ```
+
+* **En Símbolo del Sistema (CMD):**
+  ```cmd
+  venv\Scripts\activate.bat
+  ```
+
+Instala las dependencias:
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+### 3. Ejecutar la Aplicación
+
+Con el entorno virtual activado (`(venv)` al inicio de tu línea de comandos):
 
 ```bash
 python -m owervach_tmixer.main
 ```
 
-Para correr las pruebas:
+> **Tip:** En Linux también puedes lanzarlo directamente sin activar el entorno con:  
+> `./venv/bin/python -m owervach_tmixer.main`
+
+---
+
+### 🧪 Suite de Pruebas Automatizadas
+
+La aplicación cuenta con una estricta suite de pruebas unitarias e integrales que validan la persistencia atómica, el motor de MMR bayesiano, los algoritmos de mezcla y la interfaz gráfica.
+
+Para ejecutar los tests con el entorno virtual activo:
 
 ```bash
 pytest
 ```
 
-Actualmente la suite cuenta con **153 pruebas**.
+> **Métrica de calidad:** La suite completa debe finalizar con **153/153 pruebas en verde** (`100% passing`) en aproximadamente **40 a 60 segundos**.
 
-Sí, las hice.
+---
 
-No, no recuerdo para qué sirven todas.
+### 📦 Compilación y Empaquetado (`build.py`)
+
+El proyecto incluye un script de compilación inteligente multiplataforma que detecta tu sistema operativo y empaqueta el software en un solo comando:
+
+```bash
+python build.py
+```
+
+* **En Windows:** Genera un ejecutable autónomo optimizado (`dist/Overwatch-Mixer.exe`, ~72 MB) con ícono nítido y temporizador multimedia a 1 ms.
+* **En Linux:** Genera el binario nativo y empaqueta automáticamente el **`.AppImage` oficial para Gearlever / KDE Plasma / GNOME** en `dist/Overwatch-Mixer-x86_64.AppImage`, con metadatos de versión (`v1.1.0`), ícono PNG de 256x256 e integración con el sistema.
+```
+
+---
+
+### 🎯 Puntos clave que soluciona esta documentación:
+1. **Rutas y Enlaces Actualizados:** Enlaza al nuevo repositorio oficial `https://github.com/SatharaV/overwatch-mixer.git`.
+2. **Fish Shell vs Bash:** Aclara el uso de `.activate.fish` para que nadie en Linux se tope con el `Unknown command` que experimentaste.
+3. **PowerShell en Windows:** Incluye la instrucción de `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`, que es el error #1 por el cual la gente en Windows no puede activar `venv`.
+4. **Instrucción de Compilación:** Explica cómo usar `build.py` tanto para el `.exe` como para el `.AppImage` de Gearlever.
+5. **Métricas Verídicas:** Refleja con precisión los **153/153 tests en 40-60s**. Sí, las hice. No, no recuerdo para qué sirven todas.
 
 ---
 
