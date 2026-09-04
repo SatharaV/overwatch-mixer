@@ -33,6 +33,9 @@ def show_slot_context_menu(slot: PlayerSlotWidget, global_pos):
     act_props = QAction("⚙️ Ajustar Habilidad / MMR...", slot)
     act_props.triggered.connect(lambda: open_properties_modal(slot))
     menu.addAction(act_props)
+    act_reset_mmr = QAction("⚡ Restablecer MMR a 5", slot)
+    act_reset_mmr.triggered.connect(lambda: reset_slot_player_mmr(slot))
+    menu.addAction(act_reset_mmr)
 
     if not is_sp:
         act_color = QAction("🎨 Asignar Color Personalizado...", slot)
@@ -136,3 +139,13 @@ def reset_custom_color(slot: PlayerSlotWidget):
         slot._player.custom_color = None
         slot._apply_style()
         slot.slot_color_changed.emit(slot._player.name, None)
+
+def reset_slot_player_mmr(slot: PlayerSlotWidget):
+    if slot._player is None:
+        return
+    slot._player.reset_mmr(5)
+    slot.set_player(slot._player, slot._saved, slot._show_roles, slot._show_mmr)
+    slot.slot_mmr_changed.emit(slot._player.role, 5)
+    p_win = slot.window()
+    if hasattr(p_win, "show_toast"):
+        p_win.show_toast(f"⚡ MMR de {slot._player.name} restablecido a 5", "info")

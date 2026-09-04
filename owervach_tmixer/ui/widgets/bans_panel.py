@@ -230,7 +230,7 @@ class BansPanel(QFrame):
 
         self.portraits = QWidget(self.scroll)
         self.portraits.setObjectName("bansPortraits")
-        self.portraits_layout = CenteredFlowLayout(self.portraits, margin=2, h_spacing=5, v_spacing=5)
+        self.portraits_layout = CenteredFlowLayout(self.portraits, margin=4, h_spacing=5, v_spacing=5)
 
         self.scroll.setWidget(self.portraits)
         layout.addWidget(self.scroll, 1)
@@ -339,10 +339,15 @@ class BansPanel(QFrame):
             self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
             return
 
-        # Calcular cuántos retratos caben por fila según el ancho disponible
-        w = max(100, self.portraits.width() if self.portraits.width() > 50 else self.width() - 24)
+        vp_w = self.scroll.viewport().width() if self.scroll.viewport() else 0
+        if vp_w < 50:
+            vp_w = max(100, self.width() - 24)
+
+        self.portraits.resize(vp_w, max(40, self.portraits.height()))
+        self.portraits_layout.setGeometry(self.portraits.rect())
+
         item_w = self._portrait_size + 2 * _BORDER + self.portraits_layout._h_spacing
-        per_row = max(1, (w + self.portraits_layout._h_spacing) // item_w)
+        per_row = max(1, (vp_w + self.portraits_layout._h_spacing) // item_w)
         needed_rows = (len(self._banned_names) + per_row - 1) // per_row
 
         display_rows = min(needed_rows, self._visible_rows)
@@ -355,6 +360,14 @@ class BansPanel(QFrame):
             self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         else:
             self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        self.portraits.updateGeometry()
+        self.portraits.update()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(0, self._adjust_panel_height)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -373,7 +386,7 @@ class BansPanel(QFrame):
         """)
 
         canonical = resolve_canonical_name(name)
-        image = hero_portrait_path(name)
+        image = hero_portrait_path(canonical) or hero_portrait_path(name)
 
         if image:
             pix = QPixmap(str(image))

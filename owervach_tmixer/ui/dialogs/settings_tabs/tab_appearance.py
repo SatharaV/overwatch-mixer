@@ -5,6 +5,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
+    QCheckBox,
     QButtonGroup,
     QComboBox,
     QFormLayout,
@@ -24,7 +25,7 @@ from .common import create_card_box
 def build_appearance_tab(dialog, layout: QVBoxLayout):
     box_accent = create_card_box("Color de Acento Principal (Sathara)")
     vbox_accent = QVBoxLayout(box_accent)
-    vbox_accent.setSpacing(10)
+    vbox_accent.setSpacing(8)
 
     row = QHBoxLayout()
     row.setSpacing(8)
@@ -86,7 +87,7 @@ def build_appearance_tab(dialog, layout: QVBoxLayout):
 
     box_font = create_card_box("Tipografía y Anatomía de Jugadores en Equipos")
     form_font = QFormLayout(box_font)
-    form_font.setSpacing(10)
+    form_font.setSpacing(8)
 
     dialog.cb_dynamic_font = QComboBox()
     dialog.cb_dynamic_font.setView(QListView())
@@ -101,9 +102,11 @@ def build_appearance_tab(dialog, layout: QVBoxLayout):
 
     dialog.cb_slot_align = QComboBox()
     dialog.cb_slot_align.setView(QListView())
-    dialog.cb_slot_align.addItem("Centrado (Predeterminado)", "center")
-    dialog.cb_slot_align.addItem("Izquierda", "left")
-    form_font.addRow("Alineación del nombre:", dialog.cb_slot_align)
+    dialog.cb_slot_align.addItem("★ [Rol] [Estrella] — [Nombre] — [Habilidad] (Predeterminado)", "center")
+    dialog.cb_slot_align.addItem("✦ [Estrella] — [Nombre] — [Habilidad] [Rol] (Espejado)", "center_mirrored")
+    dialog.cb_slot_align.addItem("⚝ [Rol] — [Nombre] — [Estrella] [Habilidad] (Alas Simétricas)", "center_wings")
+    dialog.cb_slot_align.addItem("⮜ [Estrella] [Nombre a la Izquierda] ... [Habilidad] [Rol] (Compacto)", "left")
+    form_font.addRow("Disposición y anatomía:", dialog.cb_slot_align)
 
     dialog.cb_slot_font_weight = QComboBox()
     dialog.cb_slot_font_weight.setView(QListView())
@@ -124,11 +127,15 @@ def build_appearance_tab(dialog, layout: QVBoxLayout):
     dialog.cb_badge_outlines.addItem("Sin bordes (Limpio y simétrico) — Predeterminado", False)
     dialog.cb_badge_outlines.addItem("Con bordes (Outlines de Rol + Habilidad en naranja)", True)
     form_font.addRow("Bordes en insignias:", dialog.cb_badge_outlines)
+
+    dialog.chk_vsync = QCheckBox("Sincronización Vertical (VSync) — Sincronizar a 144Hz sin tearing")
+    dialog.chk_vsync.setStyleSheet("color: #FFFFFF; font-weight: 700; font-size: 12px;")
+    form_font.addRow("Sincronización:", dialog.chk_vsync)
     layout.addWidget(box_font)
 
     box_tier = create_card_box("Dimensiones en Tier Maker")
     form_tier = QFormLayout(box_tier)
-    form_tier.setSpacing(10)
+    form_tier.setSpacing(8)
 
     dialog.cb_tier_export_ratio = QComboBox()
     dialog.cb_tier_export_ratio.setView(QListView())
@@ -169,7 +176,7 @@ def build_appearance_tab(dialog, layout: QVBoxLayout):
 
     box_teams = create_card_box("Nombres de Equipo Predeterminados")
     form_teams = QFormLayout(box_teams)
-    form_teams.setSpacing(10)
+    form_teams.setSpacing(8)
     dialog.edit_team1 = QLineEdit()
     form_teams.addRow("Equipo 1:", dialog.edit_team1)
     dialog.edit_team2 = QLineEdit()

@@ -140,23 +140,22 @@ class ScrollablePillsWidget(QWidget):
         if event.type() == QEvent.Type.Wheel and isinstance(event, QWheelEvent):
             delta = event.angleDelta().y() or event.angleDelta().x()
             if delta != 0:
-                h_bar = self.scroll.horizontalScrollBar()
-                self._scroll_by(-delta)
+                # Física de rueda calibrada para desplazamiento cinético de 144 Hz
+                step = int(-delta / 120.0 * 52.0)
+                self._scroll_by(step)
                 return True
         elif event.type() == QEvent.Type.Resize:
             self._check_overflow()
         return super().eventFilter(watched, event)
 
     def _scroll_by(self, delta: int):
-        h_bar = self.scroll.horizontalScrollBar()
-        target = max(0, min(h_bar.maximum(), h_bar.value() + delta))
-        anim = QPropertyAnimation(h_bar, b"value", self)
-        anim.setDuration(160)
-        anim.setStartValue(h_bar.value())
-        anim.setEndValue(target)
-        anim.setEasingCurve(QEasingCurve.Type.OutCubic)
-        anim.start()
-        self._scroll_anim = anim
+        # Utilizar el driver cinético de alta precisión a 144 FPS de SmoothScrollArea
+        if hasattr(self.scroll, "_h_driver"):
+            self.scroll._h_driver.scroll_by(delta, duration_ms=135.0)
+        else:
+            h_bar = self.scroll.horizontalScrollBar()
+            target = max(0, min(h_bar.maximum(), h_bar.value() + delta))
+            h_bar.setValue(target)
 
     def _check_overflow(self):
         vp_w = self.scroll.viewport().width() if self.scroll.viewport() else self.scroll.width()

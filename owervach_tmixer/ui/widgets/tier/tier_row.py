@@ -43,7 +43,7 @@ class TierControlBtn(QPushButton):
         if self.action_type in ("up", "down"):
             bg_col = QColor("#2D3342") if is_hovered else QColor("#1C1E26")
             border_col = accent_col if is_hovered else QColor("#383E50")
-            icon_col = QColor("#FFFFFF") if is_hovered else QColor("#A3E635")
+            icon_col = QColor("#FFFFFF") if is_hovered else accent_col
         elif self.action_type == "clear":
             bg_col = QColor("#3D301C") if is_hovered else QColor("#241D14")
             border_col = QColor("#FFAA00") if is_hovered else QColor("#5A4018")

@@ -38,6 +38,31 @@ ROLE_LABEL = {Role.TANK: "Tanque", Role.DAMAGE: "Daño", Role.SUPPORT: "Apoyo"}
 _NICKNAME_MAP_CACHE: dict[str, str] = {}
 _PORTRAIT_PATH_CACHE: dict[str, Path | None] = {}
 
+# Mapeo universal autosanador de apodos y variaciones populares
+KNOWN_CANON_ALIASES: dict[str, str] = {
+    "burrisa": "Orisa",
+    "coomfist": "Doomfist",
+    "diva": "D.Va",
+    "esfera": "Wrecking Ball",
+    "winton": "Winston",
+    "saria": "Zarya",
+    "mmmei": "Mei",
+    "riper": "Reaper",
+    "sonbra": "Sombra",
+    "soyurn": "Sojourn",
+    "treiser": "Tracer",
+    "bapluis": "Baptiste",
+    "keriko": "Kiriko",
+    "mersi": "Mercy",
+    "cierra": "Sierra",
+    "momina": "Domina",
+    "ernesto": "Emre",
+    "la luuuupaaa": "Illari",
+    "poya": "Pharah",
+    "soldier: 67": "Soldier: 76",
+}
+
+
 
 def normalize_token(text: str) -> str:
     if not text:
@@ -57,8 +82,18 @@ def update_nickname_cache(heroes: list[Hero]):
 
 
 def resolve_canonical_name(name: str) -> str:
+    if not name:
+        return ""
     folded = name.strip().casefold()
-    return _NICKNAME_MAP_CACHE.get(folded, name)
+    if folded in _NICKNAME_MAP_CACHE:
+        return _NICKNAME_MAP_CACHE[folded]
+    if folded in KNOWN_CANON_ALIASES:
+        return KNOWN_CANON_ALIASES[folded]
+    norm = normalize_token(name)
+    for alias_raw, canon in KNOWN_CANON_ALIASES.items():
+        if normalize_token(alias_raw) == norm:
+            return canon
+    return name
 
 
 def hero_portrait_path(name_or_nickname: str) -> Path | None:
@@ -66,26 +101,34 @@ def hero_portrait_path(name_or_nickname: str) -> Path | None:
         return None
 
     target = resolve_canonical_name(name_or_nickname)
-    target_norm = normalize_token(target)
+    tokens_to_try = [
+        normalize_token(target),
+        normalize_token(name_or_nickname),
+        normalize_token(KNOWN_CANON_ALIASES.get(name_or_nickname.strip().casefold(), "")),
+    ]
+    tokens_to_try = [t for t in tokens_to_try if t]
 
-    if target_norm in _PORTRAIT_PATH_CACHE:
-        return _PORTRAIT_PATH_CACHE[target_norm]
+    for tok in tokens_to_try:
+        if tok in _PORTRAIT_PATH_CACHE:
+            cached = _PORTRAIT_PATH_CACHE[tok]
+            if cached is not None and cached.exists():
+                return cached
 
-    if CUSTOM_ASSETS_DIR.exists():
-        for file_path in CUSTOM_ASSETS_DIR.iterdir():
+    candidate_dirs = [CUSTOM_ASSETS_DIR, ASSETS_DIR]
+    for folder in candidate_dirs:
+        if not folder.exists():
+            continue
+        for file_path in folder.iterdir():
             if file_path.is_file() and file_path.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}:
-                if normalize_token(file_path.stem) == target_norm:
-                    _PORTRAIT_PATH_CACHE[target_norm] = file_path
-                    return file_path
+                stem_norm = normalize_token(file_path.stem)
+                for tok in tokens_to_try:
+                    if stem_norm == tok:
+                        for t in tokens_to_try:
+                            _PORTRAIT_PATH_CACHE[t] = file_path
+                        return file_path
 
-    if ASSETS_DIR.exists():
-        for file_path in ASSETS_DIR.iterdir():
-            if file_path.is_file() and file_path.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}:
-                if normalize_token(file_path.stem) == target_norm:
-                    _PORTRAIT_PATH_CACHE[target_norm] = file_path
-                    return file_path
-
-    _PORTRAIT_PATH_CACHE[target_norm] = None
+    for tok in tokens_to_try:
+        _PORTRAIT_PATH_CACHE[tok] = None
     return None
 
 

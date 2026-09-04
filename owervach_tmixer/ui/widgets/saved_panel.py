@@ -711,6 +711,14 @@ class SavedPanel(QFrame):
         act_props.triggered.connect(lambda: self._open_properties_modal(chip))
         menu.addAction(act_props)
 
+        act_reset_mmr = QAction("⚡ Restablecer MMR a 5", self)
+        act_reset_mmr.triggered.connect(lambda: self._reset_chip_mmr(chip))
+        menu.addAction(act_reset_mmr)
+
+        act_reset_mmr = QAction("⚡ Restablecer MMR a 5", self)
+        act_reset_mmr.triggered.connect(lambda: self._reset_chip_mmr(chip))
+        menu.addAction(act_reset_mmr)
+
         if not is_sp:
             act_color = QAction("🎨 Asignar Color Personalizado...", self)
             act_color.triggered.connect(lambda: self._prompt_pick_color(chip))
@@ -807,6 +815,14 @@ class SavedPanel(QFrame):
             chip.label.setText(chip._chip_text())
             self.player_role_mmr_changed.emit(chip.name, None, gen)
 
+
+    def _reset_chip_mmr(self, chip: SavedChip):
+        chip.player.reset_mmr(5)
+        chip.label.setText(chip._chip_text())
+        self.player_role_mmr_changed.emit(chip.name, None, 5)
+        p_win = self.window()
+        if hasattr(p_win, "show_toast"):
+            p_win.show_toast(f"⚡ MMR de {chip.name} restablecido a 5", "info")
 
     def _show_empty_area_menu(self, global_pos):
         menu = QMenu(self)

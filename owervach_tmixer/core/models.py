@@ -116,6 +116,20 @@ class Player:
         raw_str = " ".join(cleaned)
         return format_player_name(raw_str, True)
 
+    def reset_mmr(self, default_val: int = 5):
+        """Resetea el MMR manual al valor base y limpia calibraciones IA y estadísticas."""
+        self.mmr = default_val
+        self.mmr_tank = None
+        self.mmr_damage = None
+        self.mmr_support = None
+        self.calculated_mmr = None
+        self.calculated_mmr_tank = None
+        self.calculated_mmr_damage = None
+        self.calculated_mmr_support = None
+        self.wins = 0
+        self.losses = 0
+        self.draws = 0
+
     def get_mmr_for_role(self, role: Role | str | None = None) -> float | int:
         """Returns the effective rating (Calibrated by IA if enabled, or Manual Prior)."""
         # 1. Si la autocalibración está activa y existe dato empírico
@@ -305,6 +319,7 @@ class MatchSettings:
     team2_name: str = "Perritas"
     team1_color: str = "#00B4FF"
     team2_color: str = "#FF4444"
+    vsync: bool = True
     slot_font_size: int = 15
     window_geometry: dict = field(default_factory=dict)
     shuffle_mode: ShuffleMode = ShuffleMode.MAX_VARIETY
@@ -410,6 +425,7 @@ class MatchSettings:
             "window_geometry": getattr(self, "window_geometry", {}),
             "team1_color": getattr(self, "team1_color", "#00B4FF"),
             "team2_color": getattr(self, "team2_color", "#FF4444"),
+            "vsync": getattr(self, "vsync", True),
         }
 
     @classmethod
@@ -467,6 +483,7 @@ class MatchSettings:
             window_geometry=data.get("window_geometry", {}),
             team1_color=data.get("team1_color", "#00B4FF"),
             team2_color=data.get("team2_color", "#FF4444"),
+            vsync=data.get("vsync", True),
         )
 
 
@@ -515,12 +532,14 @@ class Match:
 
 @dataclass
 class Hero:
-    """A hero with role and custom tags."""
+    """A hero with role, custom tags, and robust origin tracking."""
 
     name: str
     role: Role
     tags: dict[str, str] = field(default_factory=dict)
     original_name: str | None = None
+    is_custom: bool = False
+    custom_portrait: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -528,6 +547,8 @@ class Hero:
             "role": self.role.value,
             "tags": self.tags,
             "original_name": self.original_name,
+            "is_custom": self.is_custom,
+            "custom_portrait": self.custom_portrait,
         }
 
     @classmethod
@@ -537,6 +558,8 @@ class Hero:
             role=Role(data["role"]),
             tags=data.get("tags", {}),
             original_name=data.get("original_name"),
+            is_custom=data.get("is_custom", False),
+            custom_portrait=data.get("custom_portrait"),
         )
 
 

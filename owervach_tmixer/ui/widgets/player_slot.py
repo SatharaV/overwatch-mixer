@@ -616,6 +616,11 @@ class PlayerSlotWidget(QFrame):
 
             target_size = max(10, size)
 
+        cache_key = (name_color, target_size, css_weight)
+        if getattr(self, "_cached_editor_key", None) == cache_key:
+            return
+        self._cached_editor_key = cache_key
+
         self._editor.setStyleSheet(f"""
             QLineEdit {{
                 background-color: transparent;
@@ -636,24 +641,85 @@ class PlayerSlotWidget(QFrame):
             self._layout.takeAt(0)
 
         self._layout.setContentsMargins(8, 2, 8, 2)
-        self._layout.setSpacing(6)
+        self._layout.setSpacing(4)
         self._editor.setMinimumWidth(40)
 
-        if self._text_align == "left":
-            # MODO IZQUIERDA (SATHARA MASTER): [Estrella / Reserva] [Jugador] [Espacio libre] [Habilidad] [Rol]
+        while self.left_layout.count():
+            self.left_layout.takeAt(0)
+        while self.right_layout.count():
+            self.right_layout.takeAt(0)
+
+        align_mode = getattr(self, "_text_align", "center")
+
+        if align_mode == "left":
+            # MODO COMPACTO IZQUIERDA: [Estrella] [Nombre] ... [Habilidad] [Rol]
+            self.left_wing.setFixedWidth(28)
+            self.right_wing.setFixedWidth(80)
             self._editor.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-            self._layout.addWidget(self.lbl_icons, 0, Qt.AlignVCenter)
-            self._layout.addWidget(self._editor, 0, Qt.AlignVCenter)
-            self._layout.addStretch(1)
-            self._layout.addWidget(self.lbl_mmr_badge, 0, Qt.AlignVCenter)
-            self._layout.addWidget(self.lbl_role_badge, 0, Qt.AlignVCenter)
-        else:
-            # MODO CENTRADO (DEFAULT): [Rol] [Candado / Estrella] [Nombre Centrado] [MMR]
-            self._editor.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self._layout.addWidget(self.lbl_role_badge, 0, Qt.AlignVCenter)
-            self._layout.addWidget(self.lbl_icons, 0, Qt.AlignVCenter)
+
+            self.left_layout.addWidget(self.lbl_icons)
+            self._layout.addWidget(self.left_wing, 0, Qt.AlignVCenter)
             self._layout.addWidget(self._editor, 1, Qt.AlignVCenter)
-            self._layout.addWidget(self.lbl_mmr_badge, 0, Qt.AlignVCenter)
+
+            self.right_layout.addWidget(self.lbl_mmr_badge)
+            self.right_layout.addWidget(self.lbl_role_badge)
+            self._layout.addWidget(self.right_wing, 0, Qt.AlignVCenter)
+
+        elif align_mode == "center_mirrored":
+            # MODO ESPEJADO: [Estrella / Candado] — [Nombre] — [Habilidad] [Rol]
+            WING_WIDTH = 76
+            self.left_wing.setFixedWidth(WING_WIDTH)
+            self.right_wing.setFixedWidth(WING_WIDTH)
+            self._editor.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            self.left_layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            self.left_layout.addWidget(self.lbl_icons)
+
+            self.right_layout.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            self.right_layout.addWidget(self.lbl_mmr_badge)
+            self.right_layout.addWidget(self.lbl_role_badge)
+
+            self._layout.addWidget(self.left_wing, 0, Qt.AlignVCenter)
+            self._layout.addWidget(self._editor, 1, Qt.AlignVCenter)
+            self._layout.addWidget(self.right_wing, 0, Qt.AlignVCenter)
+
+        elif align_mode == "center_wings":
+            # MODO ALAS SIMÉTRICAS: [Rol] — [Nombre] — [Estrella / Candado] [Habilidad]
+            WING_WIDTH = 76
+            self.left_wing.setFixedWidth(WING_WIDTH)
+            self.right_wing.setFixedWidth(WING_WIDTH)
+            self._editor.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            self.left_layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            self.left_layout.addWidget(self.lbl_role_badge)
+
+            self.right_layout.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            self.right_layout.addWidget(self.lbl_icons)
+            self.right_layout.addWidget(self.lbl_mmr_badge)
+
+            self._layout.addWidget(self.left_wing, 0, Qt.AlignVCenter)
+            self._layout.addWidget(self._editor, 1, Qt.AlignVCenter)
+            self._layout.addWidget(self.right_wing, 0, Qt.AlignVCenter)
+
+        else:
+            # PREDETERMINADO SATHARA (center):
+            # [Rol] [Estrella / Candado] — [Nombre Centrado Inmutable] — [Habilidad / MMR]
+            WING_WIDTH = 76
+            self.left_wing.setFixedWidth(WING_WIDTH)
+            self.right_wing.setFixedWidth(WING_WIDTH)
+            self._editor.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            self.left_layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            self.left_layout.addWidget(self.lbl_role_badge)
+            self.left_layout.addWidget(self.lbl_icons)
+
+            self.right_layout.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            self.right_layout.addWidget(self.lbl_mmr_badge)
+
+            self._layout.addWidget(self.left_wing, 0, Qt.AlignVCenter)
+            self._layout.addWidget(self._editor, 1, Qt.AlignVCenter)
+            self._layout.addWidget(self.right_wing, 0, Qt.AlignVCenter)
+
     def _apply_style(self):
         special = self._player is not None and is_special_player_name(self._player.name)
         fixed = self._player is not None and self._player.is_fixed

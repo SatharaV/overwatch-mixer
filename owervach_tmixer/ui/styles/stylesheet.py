@@ -93,11 +93,12 @@ QPushButton[danger="true"]:hover {
     color: #FFFFFF;
 }
 
-/* Global QMenu (Dark Obsidian Look) */
+/* Global QMenu (Dark Obsidian Look - Opaque on Wayland/Hyprland) */
 QMenu {
-    background-color: #16171E;
+    background-color: #16171E !important;
+    background: #16171E !important;
     border: 1px solid #282B36;
-    border-radius: 8px;
+    border-radius: 6px;
     padding: 5px 0px;
     color: #E2E6F0;
     font-size: 12px;
@@ -145,10 +146,12 @@ QComboBox::down-arrow {
     height: 11px;
 }
 
-/* Dropdown Container & Popup View */
+/* Dropdown Container & Popup View (Solid Opaque Obsidian) */
 QComboBoxPrivateContainer,
-QComboBoxPrivateContainer QFrame {
-    background-color: #16171E;
+QComboBoxPrivateContainer QFrame,
+QComboBoxPrivateContainer QWidget {
+    background-color: #16171E !important;
+    background: #16171E !important;
     border: 1px solid #282B36;
     border-radius: 6px;
     padding: 0px;
@@ -156,9 +159,13 @@ QComboBoxPrivateContainer QFrame {
 }
 
 QComboBox QAbstractItemView,
+QComboBox QAbstractItemView::viewport,
 QComboBox QListView,
-QListView {
-    background-color: #16171E;
+QComboBox QListView::viewport,
+QListView,
+QListView::viewport {
+    background-color: #16171E !important;
+    background: #16171E !important;
     border: 1px solid #282B36;
     border-radius: 6px;
     color: #FFFFFF;

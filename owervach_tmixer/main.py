@@ -15,6 +15,14 @@ from owervach_tmixer.ui.styles import theme
 __all__ = ["MainWindow", "SettingsDialog", "QWIDGETSIZE_MAX", "main"]
 
 
+def _qt_log_filter(msg_type, context, message):
+    # Filtrar advertencias inocuas de Matugen y registro de portal de escritorio
+    if any(tok in message for tok in ("kf.config.core", "DankMatugen", "Could not register app ID", "Failed to register with host portal")):
+        return
+    import sys
+    sys.stderr.write(f"{message}\n")
+
+
 def main():
     # 0. Registrar AppUserModelID en Windows ANTES de QApplication para forzar icono blanco en Barra de Tareas y Alt+Tab
     if sys.platform == "win32":
@@ -25,23 +33,55 @@ def main():
         except Exception:
             pass
 
+    import os
+    # Optimizar renderizado en Wayland y descapar VSync a la tasa nativa del monitor (144Hz+)
+    os.environ.setdefault("QSG_RENDER_LOOP", "threaded")
+    os.environ.setdefault("QT_WAYLAND_FRAME_EVENT", "1")
+    os.environ.setdefault("QT_WAYLAND_CLIENT_BUFFER_INTEGRATION", "wayland-egl")
+    os.environ.setdefault("QT_QPA_UPDATE_IDLE_TIME", "0")
+
+    # VSync activado por defecto para sincronizar a los 144Hz nativos sin tearing
+    from owervach_tmixer.core.storage import Storage
+    try:
+        loaded_settings = Storage().load_settings()
+        use_vsync = getattr(loaded_settings, "vsync", True)
+    except Exception:
+        use_vsync = True
+
+    from PySide6.QtGui import QSurfaceFormat
+    surface_format = QSurfaceFormat.defaultFormat()
+    surface_format.setSwapInterval(1 if use_vsync else 0)
+    QSurfaceFormat.setDefaultFormat(surface_format)
+
     QApplication.setAttribute(Qt.ApplicationAttribute.AA_DontCreateNativeWidgetSiblings)
 
+    from PySide6.QtCore import qInstallMessageHandler
+    qInstallMessageHandler(_qt_log_filter)
     app = QApplication(sys.argv)
+    # Forzar estilo 'Fusion' para blindar menús opacos y consistencia idéntica en Windows, Hyprland, KDE y GNOME
+    app.setStyle("Fusion")
     app.setDesktopFileName("owervach-tmixer")
 
     from owervach_tmixer.utils import get_resource_path
 
-    # Prioridad absoluta: Icono artesanal blanco IcoFX
-    icon_candidates = [
-        "assets/overwatch-logo-white.ico",
-        "assets/overwatch-logo-white.png",
-        "assets/overwatch-logo-white.svg",
-        "assets/overwatch-logo.svg",
-        "assets/overwatch-logo.png",
-        "assets/overwatch-logo.ico",
-        "assets/icon.svg",
-    ]
+    # Prioridad inteligente de iconos según sistema operativo
+    if sys.platform == "win32":
+        icon_candidates = [
+            "assets/overwatch-logo-white.ico",
+            "assets/overwatch-logo-white.png",
+            "assets/overwatch-logo-white.svg",
+            "assets/overwatch-logo.svg",
+            "assets/icon.svg",
+        ]
+    else:
+        # En Linux/Wayland usar siempre PNG o SVG para evitar artefactos del plugin ICO
+        icon_candidates = [
+            "assets/overwatch-logo-white.png",
+            "assets/overwatch-logo-white.svg",
+            "assets/overwatch-logo.png",
+            "assets/overwatch-logo.svg",
+            "assets/icon.svg",
+        ]
     icon_path = None
     for cand in icon_candidates:
         p = get_resource_path(cand)

@@ -201,7 +201,7 @@ class MainWindow(QMainWindow):
         self.main_splitter.addWidget(self.match_display)
 
         self.dock = RosterDockWidget(self.main_splitter)
-        self.dock.setMinimumWidth(280)
+        self.dock.setMinimumWidth(300)
         self.dock.setMaximumWidth(580)
         self.saved_panel = self.dock.saved_panel
         self.bench_panel = self.dock.bench_panel
@@ -257,26 +257,31 @@ class MainWindow(QMainWindow):
         self.header_bar.update_pill_style(btn, active_color)
 
     def _apply_theme(self):
-        qss = theme.build_stylesheet()
-        self.setStyleSheet(qss)
+        self.setUpdatesEnabled(False)
+        try:
+            qss = theme.build_stylesheet()
+            self.setStyleSheet(qss)
 
-        if hasattr(self, "match_display") and self.match_display:
-            self.match_display.apply_theme()
-        if hasattr(self, "map_widget") and self.map_widget:
-            self.map_widget.apply_theme()
-        if hasattr(self, "hero_widget") and self.hero_widget:
-            self.hero_widget.apply_theme()
-        if hasattr(self, "dock") and self.dock:
-            self.dock.apply_theme()
-        if hasattr(self, "history_panel") and self.history_panel:
-            self.history_panel.apply_theme()
-        if hasattr(self, "header_bar") and self.header_bar:
-            curr_idx = self.tabs.currentIndex() if hasattr(self, "tabs") else 0
-            self.header_bar.apply_theme(curr_idx)
-        if hasattr(self, "tier_maker") and self.tier_maker:
-            self.tier_maker.apply_theme()
-        if hasattr(self, "roster_controller") and self.roster_controller:
-            self.roster_controller.refresh_roster_ui()
+            if hasattr(self, "match_display") and self.match_display:
+                self.match_display.apply_theme()
+            if hasattr(self, "map_widget") and self.map_widget:
+                self.map_widget.apply_theme()
+            if hasattr(self, "hero_widget") and self.hero_widget:
+                self.hero_widget.apply_theme()
+            if hasattr(self, "dock") and self.dock:
+                self.dock.apply_theme()
+            if hasattr(self, "history_panel") and self.history_panel:
+                self.history_panel.apply_theme()
+            if hasattr(self, "header_bar") and self.header_bar:
+                curr_idx = self.tabs.currentIndex() if hasattr(self, "tabs") else 0
+                self.header_bar.apply_theme(curr_idx)
+            if hasattr(self, "tier_maker") and self.tier_maker:
+                self.tier_maker.apply_theme()
+            if hasattr(self, "roster_controller") and self.roster_controller:
+                self.roster_controller.refresh_roster_ui()
+        finally:
+            self.setUpdatesEnabled(True)
+            self.update()
     def _show_settings(self):
         try:
             dialog = SettingsDialog(self, self.settings_manager, self.shuffle_history)
@@ -758,12 +763,12 @@ class MainWindow(QMainWindow):
 
     def showEvent(self, event):
         super().showEvent(event)
-        self.dock.setMinimumWidth(280)
+        self.dock.setMinimumWidth(300)
         self.dock.setMaximumWidth(580)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self.dock.setMinimumWidth(280)
+        self.dock.setMinimumWidth(300)
         self.dock.setMaximumWidth(580)
 
     def closeEvent(self, event):

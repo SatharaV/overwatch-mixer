@@ -192,6 +192,20 @@ def build_players_tab(dialog, layout: QVBoxLayout):
     """)
     btn_clear_saved.clicked.connect(dialog._clear_all_saved_players)
     row_p_tools.addWidget(btn_clear_saved)
+
+    btn_reset_mmr = QPushButton("⚡ Restablecer MMR de Todos a 5")
+    btn_reset_mmr.setCursor(Qt.CursorShape.PointingHandCursor)
+    btn_reset_mmr.setFixedHeight(34)
+    btn_reset_mmr.setStyleSheet("""
+        QPushButton {
+            font-size: 11px; font-weight: 800; color: #FFAA00;
+            background-color: #272015; border: 1px solid #784E12; border-radius: 6px; padding: 4px 12px;
+        }
+        QPushButton:hover { background-color: #3D2F1C; border-color: #FFAA00; color: #FFFFFF; }
+    """)
+    btn_reset_mmr.clicked.connect(dialog._reset_all_players_mmr)
+    row_p_tools.addWidget(btn_reset_mmr)
+
     vbox_clean.addLayout(row_p_tools)
     layout.addWidget(box_clean)
 

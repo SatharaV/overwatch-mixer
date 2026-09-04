@@ -48,15 +48,15 @@ El sistema de MMR intenta estimar el nivel de cada jugador usando un modelo **Ba
 * rol jugado
 * historial individual
 
-La idea es que el valor se vaya ajustando con el tiempo en lugar de depender únicamente de un número que alguien escribió a mano.
+La idea es que este valor se vaya ajustando con el tiempo según los resultados reales, en lugar de depender únicamente de un número que alguien escribió a mano y decidió que "más o menos debería estar bien".
 
 ¿Es un sistema perfecto?
 
 No.
 
-¿Es mejor que poner "AlgúnFulanoFJ = probablemente bueno"?
+¿Es mejor que poner "AlgúnTontínFJ Probablemente es Muy Bueno" y que el sistema se lo crea para siempre?
 
-También puede ser.
+También puede ser. Honestamente, tampoco era una vara muy alta.
 
 ### 🗺️ Mapas
 
@@ -96,7 +96,7 @@ Se ha intentado mantener la interfaz fluida y el consumo de recursos razonable.
 
 Los números bonitos de rendimiento están ahí arriba en los badges.
 
-Tómeselos con la misma seriedad con la que toma sus decisiones el matchmaking de Overwatch.
+No se los tomen muy en serio.
 
 ---
 
@@ -108,6 +108,10 @@ Vas a **Releases**, descargas el ejecutable y ejecutas.
 
 Según yo eso es todo.
 
+## Descarga — Linux
+
+Vas a **Releases**, descargas el appimage y ejecutas.
+
 ---
 
 ## Instalación desde código fuente
@@ -115,7 +119,7 @@ Según yo eso es todo.
 Para quien quiera ejecutar el proyecto directamente desde Python:
 
 ```bash
-git clone https://github.com/TU-USUARIO/overwatch-team-mixer.git
+git clone https://github.com/SatharaV/overwatch-mixer-v1-windows-source.git
 cd overwatch-team-mixer
 
 python -m venv venv
@@ -155,7 +159,7 @@ Para generar el ejecutable standalone:
 python build.py
 ```
 
-El resultado será un ejecutable listo para distribuir sin necesidad de instalar Python (si lo compilas en linux creo que funciona nativo (no hay garantías (sí puse parentesís entre parentesís))).
+El resultado será un ejecutable listo para distribuir sin necesidad de instalar Python, la intención siempre fue hacer una aplicación independiente y offline lista para usar.
 
 ---
 
@@ -165,8 +169,6 @@ El resultado será un ejecutable listo para distribuir sin necesidad de instalar
 
 **Desarrollo:** Asistido por Inteligencia Artificial
 
-**Licencia:** MIT
+**Licencia:** MIT Puede usarse, modificarse y distribuirse libremente sin restricciones.
 
-Puede usarse, modificarsey distribuirse libremente.
-
-No me hago responsable de equipos injustos, discusiones por MMR ni de que alguien diga "ese algoritmo no sirve" después de perder.
+**Disclaimer:** El equipo de desarrollo no se hace responsable por el mal funcionamiento, uso indebido o consecuencias derivadas del uso de este software, incluyendo fraudes, pérdida de información o daños a sistemas y/o equipos. En cualquier caso, este software no cuenta con la capacidad técnica para causar daños de ese tipo.

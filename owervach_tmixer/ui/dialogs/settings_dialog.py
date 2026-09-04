@@ -80,8 +80,8 @@ class SettingsDialog(QDialog):
         self.settings_manager = settings_manager
         self.shuffle_history = shuffle_history
         self.setWindowTitle("Configuración del Sistema")
-        self.resize(650, 720)
-        self.setMinimumSize(600, 640)
+        self.resize(760, 800)
+        self.setMinimumSize(680, 620)
         self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowCloseButtonHint)
         self.setStyleSheet("background-color: #121316;")
 
@@ -142,7 +142,23 @@ class SettingsDialog(QDialog):
             scroll.setWidgetResizable(True)
             scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
             scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-            scroll.setStyleSheet("background-color: transparent; border: none;")
+            scroll.setStyleSheet("""
+                QScrollArea { background-color: transparent; border: none; }
+                QScrollBar:vertical {
+                    background: #14151B;
+                    width: 8px;
+                    border: none;
+                    margin: 0px;
+                }
+                QScrollBar::handle:vertical {
+                    background: #2D303D;
+                    min-height: 24px;
+                    border-radius: 4px;
+                }
+                QScrollBar::handle:vertical:hover {
+                    background: #61ab02;
+                }
+            """)
 
             page = QWidget()
             page.setStyleSheet("background-color: transparent;")
@@ -373,6 +389,8 @@ class SettingsDialog(QDialog):
         self.edit_team2.setText(s.team2_name)
         self.chk_dnd_swap.setChecked(s.dnd_cross_team_swap)
         self.chk_auto_caps.setChecked(getattr(s, "auto_capitalize_names", True))
+        if hasattr(self, "chk_vsync"):
+            self.chk_vsync.setChecked(getattr(s, "vsync", True))
         self._set_accent_hex(s.accent_color)
 
         self.spin_slot_font_size.setValue(getattr(s, "slot_font_size", 13))
@@ -452,6 +470,39 @@ class SettingsDialog(QDialog):
         parent._roster.saved = clean_list
         parent._after_roster_change()
         parent.show_toast(f"🧹 Se purgaron {removed} entradas de código/inválidas. Quedan {len(clean_list)} jugadores.", "success")
+
+    def _reset_all_players_mmr(self):
+        reply = QMessageBox.question(
+            self,
+            "⚡ Restablecer MMR Globalmente",
+            "¿Deseas restablecer el MMR de TODOS los jugadores al valor base (5)?\n\n"
+            "• Afectará a jugadores Guardados, en Zona de Espera y en Equipos.\n"
+            "• Se reiniciarán el MMR manual, calibraciones de IA y estadísticas de partidas.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+
+        parent = self.parent()
+        if not parent or not hasattr(parent, "_roster"):
+            return
+
+        roster = parent._roster
+        count = 0
+        all_players = list(roster.saved) + list(roster.bench) + [p for p in roster.team1_slots if p] + [p for p in roster.team2_slots if p]
+        seen = set()
+        for p in all_players:
+            if p and p.name not in seen:
+                seen.add(p.name)
+                p.reset_mmr(5)
+                count += 1
+
+        parent.storage.save_roster(roster)
+        parent._after_roster_change()
+        if hasattr(parent, "tier_maker"):
+            parent.tier_maker.reload_bank()
+        parent.show_toast(f"⚡ MMR de {count} jugadores restablecido a 5 correctamente", "success")
 
     def _clear_all_saved_players(self):
         reply = QMessageBox.question(
@@ -705,6 +756,8 @@ class SettingsDialog(QDialog):
         s.team2_name = self.edit_team2.text()
         s.dnd_cross_team_swap = self.chk_dnd_swap.isChecked()
         s.auto_capitalize_names = self.chk_auto_caps.isChecked()
+        if hasattr(self, "chk_vsync"):
+            s.vsync = self.chk_vsync.isChecked()
 
         if hasattr(self, "cb_dynamic_font"):
             s.slot_dynamic_font = self.cb_dynamic_font.currentData()

@@ -211,6 +211,24 @@ class Storage:
         return self._merge_base_heroes(self.heroes_file, self._load_default_heroes())
 
     def _merge_base_heroes(self, path: Path, base: list[Hero]) -> list[Hero]:
+        import unicodedata
+
+        KNOWN_ALIASES = {
+            "burrisa": "Orisa", "coomfist": "Doomfist", "diva": "D.Va",
+            "esfera": "Wrecking Ball", "winton": "Winston", "saria": "Zarya",
+            "mmmei": "Mei", "riper": "Reaper", "sonbra": "Sombra",
+            "soyurn": "Sojourn", "treiser": "Tracer", "bapluis": "Baptiste",
+            "keriko": "Kiriko", "mersi": "Mercy", "cierra": "Sierra",
+            "momina": "Domina", "ernesto": "Emre", "la luuuupaaa": "Illari",
+            "poya": "Pharah", "soldier: 67": "Soldier: 76",
+        }
+
+        def _norm_k(t: str) -> str:
+            if not t:
+                return ""
+            n = unicodedata.normalize("NFKD", t)
+            return "".join(c for c in n if not unicodedata.combining(c)).casefold().replace(" ", "").replace(".", "").replace(":", "")
+
         stored_raw = self._read_json_list(path)
         stored: list[Hero] = []
         for item in stored_raw:
@@ -219,12 +237,13 @@ class Storage:
             except (KeyError, TypeError, ValueError):
                 continue
 
-        base_names = {h.name.casefold() for h in base}
-        
-        # Si el archivo contiene datos pero ninguno coincide con héroes base, resetear
+        base_tokens = {_norm_k(h.name): h for h in base}
+        alias_tokens = {_norm_k(k): _norm_k(v) for k, v in KNOWN_ALIASES.items()}
+
+        # Si el archivo contiene datos pero NINGUNO coincide con base ni alias, descartar basura (Junk file reset)
         if stored:
             matched = any(
-                h.name.casefold() in base_names or (h.original_name and h.original_name.casefold() in base_names)
+                _norm_k(h.name) in base_tokens or (h.original_name and _norm_k(h.original_name) in base_tokens)
                 for h in stored
             )
             if not matched:
@@ -232,31 +251,50 @@ class Storage:
 
         stored_base_map: dict[str, Hero] = {}
         custom_heroes: list[Hero] = []
+        represented_base_tokens: set[str] = set()
 
         for s_hero in stored:
-            orig_key = (s_hero.original_name or "").strip().casefold()
-            name_key = s_hero.name.strip().casefold()
-            if orig_key and orig_key in base_names:
-                stored_base_map[orig_key] = s_hero
-            elif name_key in base_names:
-                stored_base_map[name_key] = s_hero
+            orig_tok = _norm_k(s_hero.original_name or "")
+            name_tok = _norm_k(s_hero.name)
+            alias_target = alias_tokens.get(name_tok)
+
+            if orig_tok and orig_tok in base_tokens:
+                s_hero.is_custom = False
+                stored_base_map[orig_tok] = s_hero
+                represented_base_tokens.add(orig_tok)
+            elif name_tok in base_tokens:
+                s_hero.is_custom = False
+                stored_base_map[name_tok] = s_hero
+                represented_base_tokens.add(name_tok)
+            elif alias_target and alias_target in base_tokens:
+                s_hero.is_custom = False
+                if not s_hero.original_name:
+                    s_hero.original_name = base_tokens[alias_target].name
+                stored_base_map[alias_target] = s_hero
+                represented_base_tokens.add(alias_target)
             else:
+                s_hero.is_custom = True
                 custom_heroes.append(s_hero)
 
-        # 1. Conservar orden canónico de héroes base (con modificaciones aplicadas)
         merged: list[Hero] = []
         for b_hero in base:
-            b_key = b_hero.name.casefold()
-            if b_key in stored_base_map:
-                merged.append(stored_base_map[b_key])
-            else:
+            b_tok = _norm_k(b_hero.name)
+            if b_tok in stored_base_map:
+                merged.append(stored_base_map[b_tok])
+            elif b_tok not in represented_base_tokens:
+                b_hero.is_custom = False
                 merged.append(b_hero)
 
-        # 2. Agregar héroes custom al final
-        merged.extend(custom_heroes)
+        seen_names = {_norm_k(h.name) for h in merged}
+        for ch in custom_heroes:
+            ch_tok = _norm_k(ch.name)
+            if ch_tok not in seen_names:
+                merged.append(ch)
+                seen_names.add(ch_tok)
 
         self._write_list(path, merged)
         return merged
+
 
     def _load_default_heroes(self) -> list[Hero]:
         try:
