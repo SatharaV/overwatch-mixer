@@ -119,8 +119,8 @@ Vas a **Releases**, descargas el appimage y ejecutas.
 Para quien quiera ejecutar el proyecto directamente desde Python:
 
 ```bash
-git clone https://github.com/SatharaV/overwatch-mixer-v1-windows-source.git
-cd overwatch-team-mixer
+git clone https://github.com/SatharaV/overwatch-mixer.git
+cd overwatch-mixer
 
 python -m venv venv
 ```
