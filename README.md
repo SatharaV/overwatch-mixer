@@ -228,7 +228,6 @@ python build.py
 
 * **En Windows:** Genera un ejecutable autónomo optimizado (`dist/Overwatch-Mixer.exe`, ~72 MB) con ícono nítido y temporizador multimedia a 1 ms.
 * **En Linux:** Genera el binario nativo y empaqueta automáticamente el **`.AppImage` oficial para Gearlever / KDE Plasma / GNOME** en `dist/Overwatch-Mixer-x86_64.AppImage`, con metadatos de versión (`v1.1.0`), ícono PNG de 256x256 e integración con el sistema.
-```
 
 ---
 
