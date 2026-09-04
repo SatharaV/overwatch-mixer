@@ -228,6 +228,7 @@ python build.py
 
 * **En Windows:** Genera un ejecutable autónomo optimizado (`dist/Overwatch-Mixer.exe`, ~72 MB) con ícono nítido y temporizador multimedia a 1 ms.
 * **En Linux:** Genera el binario nativo y empaqueta automáticamente el **`.AppImage` oficial para Gearlever / KDE Plasma / GNOME** en `dist/Overwatch-Mixer-x86_64.AppImage`, con metadatos de versión (`v1.1.0`), ícono PNG de 256x256 e integración con el sistema.
+* **El resultado** será un **ejecutable listo para distribuir sin necesidad de instalar Python ni cosas extra**, la intención siempre fue hacer una aplicación independiente y offline lista para usar.
 
 ---
 
@@ -237,18 +238,6 @@ python build.py
 3. **PowerShell en Windows:** Incluye la instrucción de `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`, que es el error #1 por el cual la gente en Windows no puede activar `venv`.
 4. **Instrucción de Compilación:** Explica cómo usar `build.py` tanto para el `.exe` como para el `.AppImage` de Gearlever.
 5. **Métricas Verídicas:** Refleja con precisión los **153/153 tests en 40-60s**. Sí, las hice. No, no recuerdo para qué sirven todas.
-
----
-
-## Compilación
-
-Para generar el ejecutable standalone:
-
-```bash
-python build.py
-```
-
-El resultado será un ejecutable listo para distribuir sin necesidad de instalar Python, la intención siempre fue hacer una aplicación independiente y offline lista para usar.
 
 ---
 
