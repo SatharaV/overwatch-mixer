@@ -116,8 +116,6 @@ Vas a **Releases**, descargas el appimage y ejecutas, eso es todo.
 
 ## 🛠️ Instalación y Ejecución desde Código Fuente
 
-```markdown
-
 Si deseas ejecutar, modificar o compilar el proyecto directamente desde el código fuente, sigue los pasos correspondientes a tu sistema operativo.
 
 ### 📋 Requisitos Previos
