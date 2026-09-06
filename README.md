@@ -54,9 +54,9 @@ La idea es que este valor se vaya ajustando con el tiempo según los resultados 
 
 No.
 
-¿Es mejor que poner "AlgúnTontínFJ Probablemente es Muy Bueno" y que el sistema se lo crea para siempre?
+¿Es mejor que poner una variable con valor: "AlgúnTontínFJ Se ve que es Bueno" y que el sistema se lo crea para siempre?
 
-También puede ser. Honestamente, tampoco era una vara muy alta.
+Según mis cálculos es probable que sí.
 
 ### 🗺️ Mapas
 
@@ -78,7 +78,7 @@ Un **Tier Maker integrado** para ordenar héroes o jugadores y exportar el resul
 
 La verdad no sabía que más poner para que el programa no fuera tan simplón.
 
-### 👑 Cosas que no eran necesarias
+### 🐤 Cosas que no eran necesarias
 
 También hay algunas pequeñas sorpresas y easter eggs repartidos por la aplicación.
 
@@ -96,7 +96,7 @@ Se ha intentado mantener la interfaz fluida y el consumo de recursos razonable.
 
 Los números bonitos de rendimiento están ahí arriba en los badges.
 
-No se los tomen muy en serio.
+(No hay garantías).
 
 ---
 
