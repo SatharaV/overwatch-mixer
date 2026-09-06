@@ -173,7 +173,7 @@ class BansPanel(QFrame):
         header.setContentsMargins(0, 0, 0, 0)
         header.setSpacing(6)
 
-        self.title_label = QLabel("⛔ HÉROES BANEADOS (0)", self)
+        self.title_label = QLabel("HÉROES BANEADOS (0)", self)
         self.title_label.setStyleSheet("font-size: 11px; font-weight: 900; color: #FF5555; background: transparent;")
         header.addWidget(self.title_label, 1)
 
@@ -313,7 +313,7 @@ class BansPanel(QFrame):
             for name in self._banned_names:
                 self.portraits_layout.addWidget(self._portrait_label(name))
 
-        self.title_label.setText(f"⛔ HÉROES BANEADOS ({len(self._banned_names)})")
+        self.title_label.setText(f"HÉROES BANEADOS ({len(self._banned_names)})")
         self._adjust_panel_height()
 
     def set_visible_rows(self, rows: int):

@@ -60,6 +60,32 @@ class SlotOperationsMixin:
         self.after_roster_change()
         self.win.show_toast(f"✏️ Jugador renombrado a '{clean_name}'", "info")
 
+    def set_slot_vip(self: RosterController, team_num: int, slot_idx: int, is_vip: bool):
+        player = self.roster.player_at(team_num, slot_idx)
+        if player is None:
+            return
+        self.set_global_player_vip(player.name, is_vip)
+
+    def set_global_player_vip(self: RosterController, name: str, is_vip: bool):
+        """Sincroniza el privilegio Streamer en partida, espera y guardados (Regla de Armonía)."""
+        target_folded = name.casefold()
+        for p in self.roster.active_players() + self.roster.bench + self.roster.saved:
+            if p.name.casefold() == target_folded:
+                p.is_vip = is_vip
+        self.after_roster_change()
+        status = "otorgada" if is_vip else "retirada"
+        self.win.show_toast(f"👑 Prioridad Streamer {status} para '{name}'", "info")
+
+    def clear_all_vips(self: RosterController):
+        """Cierre de sesión Sudo: Quita todas las coronas del sistema con un solo clic."""
+        count = 0
+        for p in self.roster.active_players() + self.roster.bench + self.roster.saved:
+            if getattr(p, "is_vip", False):
+                p.is_vip = False
+                count += 1
+        self.after_roster_change()
+        self.win.show_toast(f"👑 Se retiraron {count} coronas de Streamer (Sesión sudo cerrada)", "info")
+
     def set_slot_fixed_team(self: RosterController, team_num: int, slot_idx: int, new_fixed_team: int | None):
         player = self.roster.player_at(team_num, slot_idx)
         if player is None:

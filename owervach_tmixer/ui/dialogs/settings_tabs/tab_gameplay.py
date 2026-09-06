@@ -61,6 +61,35 @@ def build_shuffle_tab(dialog, layout: QVBoxLayout):
     form_hist.addRow("", btn_clear)
     layout.addWidget(box_hist)
 
+    # Configuración de Rotación de Zona de Espera
+    box_rot = create_card_box("Política de Rotación de Zona de Espera")
+    form_rot = QFormLayout(box_rot)
+    form_rot.setSpacing(12)
+
+    dialog.cb_rotation_policy = QComboBox()
+    dialog.cb_rotation_policy.setView(QListView())
+    dialog.cb_rotation_policy.addItem("Continua / Cinta (Recomendado)", "continuous")
+    dialog.cb_rotation_policy.addItem("En Bloque (Todos a la vez)", "full_batch")
+    dialog.cb_rotation_policy.addItem("El Ganador se Queda (Arcade / Retas)", "winner_stays")
+    form_rot.addRow("Modo de rotación:", dialog.cb_rotation_policy)
+
+    dialog.spin_rotation_batch = QSpinBox()
+    dialog.spin_rotation_batch.setRange(1, 5)
+    dialog.spin_rotation_batch.setValue(2)
+    form_rot.addRow("Jugadores a rotar por partida:", dialog.spin_rotation_batch)
+
+    dialog.spin_min_shield = QSpinBox()
+    dialog.spin_min_shield.setRange(1, 4)
+    dialog.spin_min_shield.setValue(2)
+    form_rot.addRow("Permanencia mínima garantizada (Bo2):", dialog.spin_min_shield)
+
+    dialog.spin_streamer_rest = QSpinBox()
+    dialog.spin_streamer_rest.setRange(0, 10)
+    dialog.spin_streamer_rest.setValue(0)
+    form_rot.addRow("Descanso de Streamers 👑 (0 = Siempre juegan):", dialog.spin_streamer_rest)
+
+    layout.addWidget(box_rot)
+
 
 def build_roles_bans_tab(dialog, layout: QVBoxLayout):
     box_policy = create_card_box("Políticas de Roles")
@@ -167,7 +196,7 @@ def build_players_tab(dialog, layout: QVBoxLayout):
     row_p_tools = QHBoxLayout()
     row_p_tools.setSpacing(10)
 
-    btn_purge = QPushButton("🧹 Purgar Entradas Inválidas / Código")
+    btn_purge = QPushButton("🧹 Purgar Inválidos")
     btn_purge.setCursor(Qt.CursorShape.PointingHandCursor)
     btn_purge.setFixedHeight(34)
     btn_purge.setStyleSheet("""
@@ -193,7 +222,7 @@ def build_players_tab(dialog, layout: QVBoxLayout):
     btn_clear_saved.clicked.connect(dialog._clear_all_saved_players)
     row_p_tools.addWidget(btn_clear_saved)
 
-    btn_reset_mmr = QPushButton("⚡ Restablecer MMR de Todos a 5")
+    btn_reset_mmr = QPushButton("⚡ Reset MMR (5)")
     btn_reset_mmr.setCursor(Qt.CursorShape.PointingHandCursor)
     btn_reset_mmr.setFixedHeight(34)
     btn_reset_mmr.setStyleSheet("""

@@ -11,6 +11,7 @@ from PySide6.QtGui import QColor, QFont, QPainter, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
+    QFrame,
     QHBoxLayout,
     QMainWindow,
     QSplashScreen,
@@ -44,7 +45,7 @@ from owervach_tmixer.ui.widgets.history_panel import HistoryPanel
 from owervach_tmixer.ui.widgets.map_widget import MapWidget
 from owervach_tmixer.ui.widgets.map_card import preload_all_map_banners
 from owervach_tmixer.ui.widgets.roster_dock import RosterDockWidget
-from owervach_tmixer.ui.widgets.team_display import MatchDisplayWidget
+from owervach_tmixer.ui.widgets.match_display import MatchDisplayWidget
 from owervach_tmixer.ui.widgets.tier_maker import TierMakerWidget
 from owervach_tmixer.ui.widgets.toast import ToastManager
 
@@ -125,6 +126,10 @@ class MainWindow(QMainWindow):
         return self.header_bar.tryhard_toggle
 
     @property
+    def rotation_toggle(self):
+        return self.header_bar.rotation_toggle
+
+    @property
     def btn_settings(self):
         return self.header_bar.btn_settings
 
@@ -144,7 +149,8 @@ class MainWindow(QMainWindow):
         self.toast.show_toast(message, kind)
 
     def _setup_ui(self):
-        theme.set_accent(self.settings_manager.settings.accent_color)
+        s = self.settings_manager.settings
+        theme.set_theme(getattr(s, "theme_name", "obsidian"), s.accent_color)
 
         central = QWidget(self)
         main_layout = QVBoxLayout(central)
@@ -159,6 +165,7 @@ class MainWindow(QMainWindow):
             show_roles=s.show_roles,
             auto_roles=s.auto_roles,
             balance_by_mmr=getattr(s, "balance_by_mmr", False),
+            bench_rotation_enabled=getattr(s, "bench_rotation_enabled", False),
             parent=central,
         )
         self.header_bar.nav_tab_clicked.connect(self._on_nav_tab_clicked)
@@ -166,6 +173,7 @@ class MainWindow(QMainWindow):
         self.header_bar.show_roles_toggled.connect(self._on_show_roles_toggled)
         self.header_bar.randomize_roles_toggled.connect(self._on_randomize_roles_toggled)
         self.header_bar.tryhard_toggled.connect(self._on_tryhard_toggled)
+        self.header_bar.rotation_toggled.connect(self._on_rotation_toggled)
         self.header_bar.settings_clicked.connect(self._show_settings)
         main_layout.addWidget(self.header_bar)
 
@@ -196,23 +204,33 @@ class MainWindow(QMainWindow):
             }
         """)
 
-        self.match_display = MatchDisplayWidget(self.main_splitter)
-        self.match_display.setMinimumWidth(560)
-        self.main_splitter.addWidget(self.match_display)
+        # ------------------------------------------------------------------
+        # 1. Instanciación pura de componentes desacoplados
+        # ------------------------------------------------------------------
+        self.match_display = MatchDisplayWidget()
+        self.map_banner = self.match_display.map_banner
 
-        self.dock = RosterDockWidget(self.main_splitter)
-        self.dock.setMinimumWidth(300)
-        self.dock.setMaximumWidth(580)
-        self.saved_panel = self.dock.saved_panel
-        self.bench_panel = self.dock.bench_panel
-        self.bans_panel = self.dock.bans_panel
+        # Panel lateral flexible (aloja bans + mapa o dock según el tema)
+        self.side_panel = QFrame()
+        self.side_panel.setObjectName("sidePanel")
+        self.left_tactical_panel = self.side_panel  # Alias retrocompatible
+        self.side_layout = QVBoxLayout(self.side_panel)
+        self.side_layout.setContentsMargins(0, 0, 0, 0)
+        self.side_layout.setSpacing(8)
+
+        from owervach_tmixer.ui.widgets.bans_panel import BansPanel
+        self.bans_panel = BansPanel(self.side_panel)
         self.bans_panel.randomize_requested.connect(self._randomize_bans_from_main)
         self.bans_panel.set_portrait_size(
             getattr(self.settings_manager.settings, "ban_portrait_size", 44)
         )
-        self.main_splitter.addWidget(self.dock)
-        self.main_splitter.setStretchFactor(0, 3)
-        self.main_splitter.setStretchFactor(1, 1)
+
+        self.dock = RosterDockWidget()
+        self.saved_panel = self.dock.saved_panel
+        self.bench_panel = self.dock.bench_panel
+
+        self._current_topology_mode: str | None = None
+        self._sync_layout_topology()
 
         match_layout.addWidget(self.main_splitter, 1)
         self.tabs.addTab(self.tab_match, "Partida")
@@ -256,11 +274,70 @@ class MainWindow(QMainWindow):
     def _update_pill_style(self, btn, active_color: str):
         self.header_bar.update_pill_style(btn, active_color)
 
+    def _sync_layout_topology(self):
+        """Adapta dinámicamente la topología de la sala entre Overwatch 1:1 y Clásico sin recrear widgets."""
+        is_ow = (theme.tokens().layout_type == "tactical_overwatch")
+        target_mode = "overwatch" if is_ow else "classic"
+        if getattr(self, "_current_topology_mode", None) == target_mode:
+            return
+        self._current_topology_mode = target_mode
+
+        # 1. Desvincular de forma segura los componentes dinámicos
+        if hasattr(self, "match_display"):
+            self.match_display.clear_middle()
+        if hasattr(self, "side_layout"):
+            while self.side_layout.count():
+                item = self.side_layout.takeAt(0)
+                w = item.widget()
+                if w is not None:
+                    w.setParent(None)
+
+        if is_ow:
+            # -------------------------------------------------------------
+            # TOPOLOGÍA OVERWATCH 1:1:
+            # Columna Izquierda Táctica: Mapa 16:9 arriba + Baneos abajo
+            # Columna Principal Derecha: Equipos + Dock Horizontal
+            # -------------------------------------------------------------
+            self.side_layout.addWidget(self.map_banner, 0)
+            self.side_layout.addWidget(self.bans_panel, 1)
+
+            self.dock.setMinimumHeight(150)
+            self.dock.setMaximumHeight(260)
+            self.match_display.embed_bench_dock(self.dock)
+
+            self.main_splitter.insertWidget(0, self.side_panel)
+            self.main_splitter.insertWidget(1, self.match_display)
+            self.main_splitter.setStretchFactor(0, 2)
+            self.main_splitter.setStretchFactor(1, 5)
+            self.side_panel.setMinimumWidth(280)
+            self.side_panel.setMaximumWidth(380)
+
+        else:
+            # -------------------------------------------------------------
+            # TOPOLOGÍA CLÁSICA / OBSIDIAN:
+            # Columna Principal Izquierda: Equipos + Mapa Horizontal
+            # Columna Lateral Derecha: Dock expandido arriba + Baneos abajo
+            # -------------------------------------------------------------
+            self.match_display.embed_map_banner(self.map_banner)
+
+            self.dock.setMinimumHeight(200)
+            self.dock.setMaximumHeight(16777215)  # Expansión elástica total
+            self.side_layout.addWidget(self.dock, 1)
+            self.side_layout.addWidget(self.bans_panel, 0)
+
+            self.main_splitter.insertWidget(0, self.match_display)
+            self.main_splitter.insertWidget(1, self.side_panel)
+            self.main_splitter.setStretchFactor(0, 4)
+            self.main_splitter.setStretchFactor(1, 2)
+            self.side_panel.setMinimumWidth(300)
+            self.side_panel.setMaximumWidth(580)
+
     def _apply_theme(self):
         self.setUpdatesEnabled(False)
         try:
             qss = theme.build_stylesheet()
             self.setStyleSheet(qss)
+            self._sync_layout_topology()
 
             if hasattr(self, "match_display") and self.match_display:
                 self.match_display.apply_theme()
@@ -328,6 +405,8 @@ class MainWindow(QMainWindow):
         self.bench_panel.bench_drop_entry.connect(self._on_drop_to_bench)
         self.bench_panel.fill_teams_requested.connect(self._on_fill_teams_from_bench)
         self.bench_panel.bench_all_requested.connect(self._on_bench_all_teams)
+        if hasattr(self.bench_panel, "rotate_requested"):
+            self.bench_panel.rotate_requested.connect(self.roster_controller.rotate_with_bench)
         self.bench_panel.player_role_mmr_changed.connect(self._on_global_player_role_mmr_changed)
         self.bench_panel.player_renamed.connect(self._on_global_player_renamed)
         self.bench_panel.player_color_changed.connect(self._on_global_player_color_changed)
@@ -458,6 +537,11 @@ class MainWindow(QMainWindow):
             self.tryhard_toggle.setChecked(is_tryhard)
             self._update_pill_style(self.tryhard_toggle, "#9D5CFF")
         self.match_display.set_show_mmr(is_tryhard)
+
+        is_rotating = getattr(s, "bench_rotation_enabled", False)
+        if hasattr(self, "rotation_toggle"):
+            self.rotation_toggle.setChecked(is_rotating)
+            self._update_pill_style(self.rotation_toggle, "#FFAA00")
 
         self._apply_role_policy()
         self.shuffle_history.set_max_size(s.history_size)
@@ -651,6 +735,9 @@ class MainWindow(QMainWindow):
     def _on_tryhard_toggled(self, checked: bool):
         self.match_controller.on_tryhard_toggled(checked)
 
+    def _on_rotation_toggled(self, checked: bool):
+        self.match_controller.on_rotation_toggled(checked)
+
     def _on_team_name_changed(self, team_num: int, name: str):
         self.match_controller.on_team_name_changed(team_num, name)
 
@@ -763,13 +850,17 @@ class MainWindow(QMainWindow):
 
     def showEvent(self, event):
         super().showEvent(event)
-        self.dock.setMinimumWidth(300)
-        self.dock.setMaximumWidth(580)
+        is_ow = (theme.tokens().layout_type == "tactical_overwatch")
+        if hasattr(self, "side_panel"):
+            self.side_panel.setMinimumWidth(280 if is_ow else 300)
+            self.side_panel.setMaximumWidth(380 if is_ow else 580)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self.dock.setMinimumWidth(300)
-        self.dock.setMaximumWidth(580)
+        is_ow = (theme.tokens().layout_type == "tactical_overwatch")
+        if hasattr(self, "side_panel"):
+            self.side_panel.setMinimumWidth(280 if is_ow else 300)
+            self.side_panel.setMaximumWidth(380 if is_ow else 580)
 
     def closeEvent(self, event):
         self._save_geometry()

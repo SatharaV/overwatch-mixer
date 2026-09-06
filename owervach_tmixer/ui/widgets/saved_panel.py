@@ -4,7 +4,7 @@ from __future__ import annotations
 from .smooth_scroll import SmoothScrollArea
 
 from typing import Optional, Set
-from PySide6.QtCore import QPoint, QRect, QSize, Qt, Signal
+from PySide6.QtCore import QTimer, QPoint, QRect, QSize, Qt, Signal
 from PySide6.QtGui import QAction, QColor, QDrag, QGuiApplication, QCursor, QPainter, QBrush, QPen, QFont
 from PySide6.QtWidgets import (
     QApplication,
@@ -76,8 +76,6 @@ class SavedChip(QFrame):
                 return
         super().dropEvent(event)
 
-    """A single draggable saved-player chip with custom color and live status dot."""
-
     def __init__(self, panel: SavedPanel, player: Player, in_active: bool = False, in_bench: bool = False, parent: QWidget | None = None):
         super().__init__(parent or panel)
         self._panel = panel
@@ -88,46 +86,78 @@ class SavedChip(QFrame):
         self.special = is_special_player_name(player.name)
         self._pressing = False
         self._press_pos = QPoint()
+        self._is_selected = False
+
         self.setObjectName("savedChip")
-        self.setToolTip(
-            "🟢 En partida activa" if in_active else ("🟡 En Zona de Espera" if in_bench else "Arrastra para añadir a un equipo")
-        )
+        self.setToolTip("Arrastra para añadir a un equipo · Doble clic: añadir automáticamente")
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.customContextMenuRequested.connect(
-            lambda pos, chip=self: self._panel._show_chip_menu(chip, pos))
+        self.customContextMenuRequested.connect(lambda pos, chip=self: self._panel._show_chip_menu(chip, pos))
 
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFixedHeight(28)
+
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(8, 4, 8, 4)
+        layout.setContentsMargins(5, 2, 5, 2)
         layout.setSpacing(4)
 
-        self.label = QLabel(self._chip_text())
-        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-        layout.addWidget(self.label)
+        # 1. Puntito de estado al extremo izquierdo
+        self.lbl_status = QLabel(self)
+        self.lbl_status.setFixedWidth(10)
+        self.lbl_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_status.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        layout.addWidget(self.lbl_status, 0)
 
+        # 2. MMR / Habilidad
+        self.lbl_mmr = QLabel(self)
+        self.lbl_mmr.setFixedWidth(20)
+        self.lbl_mmr.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_mmr.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        layout.addWidget(self.lbl_mmr, 0)
+
+        # 3. Nombre del jugador (alineado a la izquierda, expandiendo)
+        self.lbl_name = QLabel(self.player.name, self)
+        self.lbl_name.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.lbl_name.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.lbl_name.setMinimumWidth(0)
+        layout.addWidget(self.lbl_name, 1)
+
+        # 4. Corona de Streamer / Emblemas a la derecha del nombre
+        self.lbl_badges = QLabel(self)
+        self.lbl_badges.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.lbl_badges.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        layout.addWidget(self.lbl_badges, 0)
+
+        self.label = self.lbl_name
         self._apply_chip_style()
-
-    def _chip_text(self) -> str:
-        parts = []
-        if self.in_active:
-            parts.append("🟢")
-        elif self.in_bench:
-            parts.append("🟡")
-
-        if getattr(self._panel, "_show_mmr", False):
-            mmr = getattr(self.player, "mmr", 5)
-            parts.append(f"⚡{mmr}")
-        if self.player.fixed_team:
-            parts.append("🔒")
-        parts.append(self.player.name)
-        if self.player.role:
-            parts.append(f"· {self.player.role.value.capitalize()}")
-        return "  ".join(parts)
 
     def _apply_chip_style(self):
         custom_color = getattr(self.player, "custom_color", None)
         accent = theme.accent()
+
+        if self.in_active:
+            self.lbl_status.setText("●")
+            self.lbl_status.setStyleSheet("color: #44FF66; font-size: 11px; background: transparent;")
+        elif self.in_bench:
+            self.lbl_status.setText("●")
+            self.lbl_status.setStyleSheet("color: #FFAA00; font-size: 11px; background: transparent;")
+        else:
+            self.lbl_status.setText("●")
+            self.lbl_status.setStyleSheet("color: #4F566B; font-size: 11px; background: transparent;")
+
+        mmr_val = getattr(self.player, "mmr", 5)
+        self.lbl_mmr.setText(f"⚡{mmr_val}")
+        self.lbl_mmr.setStyleSheet("color: #FFAA00; font-size: 10px; font-weight: 800; background: transparent;")
+
+        badges = []
+        if getattr(self.player, "is_vip", False):
+            badges.append("👑")
+        if is_special_player_name(self.player.name):
+            badges.append("⚜️")
+        if self.player.fixed_team:
+            badges.append("🔒")
+        self.lbl_badges.setText(" ".join(badges))
+        self.lbl_badges.setStyleSheet("font-size: 11px; background: transparent;")
+
         if getattr(self, "_is_selected", False):
             self.setStyleSheet(f"""
                 QFrame#savedChip {{
@@ -135,7 +165,7 @@ class SavedChip(QFrame):
                     border: 1.5px solid {accent};
                     border-radius: 6px;
                 }}
-                QLabel {{ color: #FFFFFF; font-size: 12px; font-weight: 800; background: transparent; }}
+                QLabel {{ color: #FFFFFF; font-size: 11px; font-weight: 700; background: transparent; }}
             """)
             return
 
@@ -152,7 +182,7 @@ class SavedChip(QFrame):
                 }
                 QLabel {
                     color: #A4E062;
-                    font-size: 12px;
+                    font-size: 11px;
                     font-weight: 700;
                     background: transparent;
                 }
@@ -174,27 +204,28 @@ class SavedChip(QFrame):
                 }}
                 QLabel {{
                     color: {custom_color};
-                    font-size: 12px;
+                    font-size: 11px;
                     font-weight: 700;
                     background: transparent;
                 }}
             """)
         else:
-            border_color = "#3A4436" if self.in_active else "#2B2E36"
+            border_color = "#2E5C38" if self.in_active else ("#705016" if self.in_bench else "#282B34")
+            bg_color = "#141D17" if self.in_active else ("#201A12" if self.in_bench else "#16171D")
             self.setStyleSheet(f"""
                 QFrame#savedChip {{
-                    background-color: #181A1E;
+                    background-color: {bg_color};
                     border: 1px solid {border_color};
                     border-radius: 6px;
                 }}
                 QFrame#savedChip:hover {{
-                    background-color: #22252C;
+                    background-color: #232733;
                     border-color: {accent};
                 }}
                 QLabel {{
                     color: #D8DCE5;
-                    font-size: 12px;
-                    font-weight: 600;
+                    font-size: 11px;
+                    font-weight: 700;
                     background: transparent;
                 }}
             """)
@@ -231,11 +262,6 @@ class SavedChip(QFrame):
                 and (event.position().toPoint() - self._press_pos).manhattanLength()
                 >= QApplication.startDragDistance()):
             self._pressing = False
-
-            is_sp = is_special_player_name(self.name)
-            if is_sp:
-                from owervach_tmixer.ui.easter_eggs import notify_special_drag_start, notify_special_drag_end
-                notify_special_drag_start(self.window())
 
             drag = QDrag(self)
             active_selected = [c.name for c in self._panel.chips if c.name in self._panel.selected_names]
@@ -276,15 +302,8 @@ class SavedChip(QFrame):
             drag.setPixmap(pix)
             drag.exec(Qt.DropAction.MoveAction)
             clear_all_drop_highlights()
-
-            if is_sp:
-                notify_special_drag_end()
             return
         super().mouseMoveEvent(event)
-
-    def mouseReleaseEvent(self, event):
-        self._pressing = False
-        super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event):
         self._pressing = False
@@ -328,7 +347,7 @@ class SavedPanel(QFrame):
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
 
-        # 1. Add Input Row
+        # 1. Fila de Input y botón + Guardar
         add_row = QHBoxLayout()
         add_row.setSpacing(6)
 
@@ -340,55 +359,110 @@ class SavedPanel(QFrame):
         self.btn_add = QPushButton("+ Guardar")
         self.btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_add.clicked.connect(self._on_add)
+        self.btn_add.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(97, 171, 2, 0.12);
+                border: 1px solid #61ab02;
+                border-radius: 5px;
+                padding: 6px 12px;
+                color: #A4E062;
+                font-size: 12px;
+                font-weight: 800;
+            }
+            QPushButton:hover {
+                background-color: rgba(97, 171, 2, 0.25);
+                border-color: #A4E062;
+                color: #FFFFFF;
+            }
+            QPushButton:pressed { background-color: #12141C; }
+        """)
         add_row.addWidget(self.btn_add)
         layout.addLayout(add_row)
 
-        # 2. Outline Toolbar Row
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(4)
+        # 2. Barra de Utilidades con outlines visibles de 1px
+        tools_layout = QVBoxLayout()
+        tools_layout.setSpacing(5)
 
-        btn_quick_fill = QPushButton("📥 Llenar")
-        btn_quick_fill.setToolTip("Rellenar huecos de los equipos con jugadores guardados")
-        btn_quick_fill.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_quick_fill.clicked.connect(self.fill_teams_from_saved_requested.emit)
+        row_lobby = QHBoxLayout()
+        row_lobby.setSpacing(6)
 
-        btn_quick_bench = QPushButton("🪑 Espera")
-        btn_quick_bench.setToolTip("Enviar todos los jugadores guardados a Zona de Espera")
-        btn_quick_bench.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_quick_bench.clicked.connect(self.send_all_saved_to_bench_requested.emit)
+        self.btn_quick_fill = QPushButton("Llenar Partida")
+        self.btn_quick_fill.setToolTip("Rellenar huecos libres de los equipos con jugadores guardados")
+        self.btn_quick_fill.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_quick_fill.clicked.connect(self.fill_teams_from_saved_requested.emit)
+        self.btn_quick_fill.setStyleSheet("""
+            QPushButton {
+                font-size: 11px; font-weight: 700; color: #A4E062;
+                background-color: rgba(97, 171, 2, 0.08);
+                border: 1px solid #61ab02; border-radius: 5px; padding: 5px 4px;
+            }
+            QPushButton:hover { background-color: rgba(97, 171, 2, 0.22); border-color: #A4E062; color: #FFFFFF; }
+        """)
+        row_lobby.addWidget(self.btn_quick_fill, 1)
 
-        btn_paste = QPushButton("📋 Pegar")
-        btn_paste.setToolTip("Añadir jugadores desde el portapapeles")
-        btn_paste.clicked.connect(self._paste_clipboard)
-        btn_paste.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_quick_bench = QPushButton("A Espera")
+        self.btn_quick_bench.setToolTip("Enviar todos los jugadores guardados a la Zona de Espera")
+        self.btn_quick_bench.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_quick_bench.clicked.connect(self.send_all_saved_to_bench_requested.emit)
+        self.btn_quick_bench.setStyleSheet("""
+            QPushButton {
+                font-size: 11px; font-weight: 700; color: #FF8B8B;
+                background-color: rgba(255, 68, 68, 0.08);
+                border: 1px solid #FF4444; border-radius: 5px; padding: 5px 4px;
+            }
+            QPushButton:hover { background-color: rgba(255, 68, 68, 0.22); border-color: #FFAAAA; color: #FFFFFF; }
+        """)
+        row_lobby.addWidget(self.btn_quick_bench, 1)
+        tools_layout.addLayout(row_lobby)
 
-        btn_import = QPushButton("📂 Import")
-        btn_import.setToolTip("Cargar lista desde archivo (.json o .txt)")
-        btn_import.clicked.connect(self._pick_import)
-        btn_import.setCursor(Qt.CursorShape.PointingHandCursor)
+        row_data = QHBoxLayout()
+        row_data.setSpacing(5)
 
-        btn_export = QPushButton("💾 Export")
-        btn_export.setToolTip("Guardar lista a un archivo (.json o .txt)")
-        btn_export.clicked.connect(self._pick_export)
-        btn_export.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_paste = QPushButton("Pegar")
+        self.btn_paste.setToolTip("Añadir jugadores copiados desde el portapapeles")
+        self.btn_paste.clicked.connect(self._paste_clipboard)
+        self.btn_paste.setCursor(Qt.CursorShape.PointingHandCursor)
+        row_data.addWidget(self.btn_paste, 1)
 
-        self._buttons = [self.btn_add, btn_quick_fill, btn_quick_bench, btn_paste, btn_import, btn_export]
-        for b in self._buttons[1:]:
-            btn_row.addWidget(b, 1)
+        self.btn_import = QPushButton("Importar")
+        self.btn_import.setToolTip("Cargar lista desde archivo (.json o .txt)")
+        self.btn_import.clicked.connect(self._pick_import)
+        self.btn_import.setCursor(Qt.CursorShape.PointingHandCursor)
+        row_data.addWidget(self.btn_import, 1)
 
-        layout.addLayout(btn_row)
+        self.btn_export = QPushButton("Exportar")
+        self.btn_export.setToolTip("Guardar lista a un archivo (.json o .txt)")
+        self.btn_export.clicked.connect(self._pick_export)
+        self.btn_export.setCursor(Qt.CursorShape.PointingHandCursor)
+        row_data.addWidget(self.btn_export, 1)
 
-        # 3. Separador Obsidian Nítido
+        for b in (self.btn_paste, self.btn_import, self.btn_export):
+            b.setStyleSheet("""
+                QPushButton {
+                    font-size: 11px; font-weight: 700; color: #CCD1DE;
+                    background-color: rgba(26, 30, 42, 0.70);
+                    border: 1px solid #4A5268; border-radius: 5px; padding: 5px 4px;
+                }
+                QPushButton:hover {
+                    background-color: rgba(45, 52, 72, 0.85);
+                    border-color: #61ab02; color: #FFFFFF;
+                }
+            """)
+
+        tools_layout.addLayout(row_data)
+        layout.addLayout(tools_layout)
+
+        # 3. Separador
         self.sep = QFrame(self)
         self.sep.setFrameShape(QFrame.Shape.HLine)
         self.sep.setFixedHeight(1)
         self.sep.setStyleSheet("background-color: #2D3242; border: none; margin: 2px 0 2px 0;")
         layout.addWidget(self.sep)
 
-        # 4. Scrollable Pool
+        # 4. Scrollable Pool con 2 columnas simétricas permanentes
         self.pool = QWidget()
         self.pool.setObjectName("savedPool")
-        self.pool_layout = FlowLayout(self.pool, h_spacing=6, v_spacing=6)
+        self.pool_layout = FlowLayout(self.pool, margin=4, h_spacing=4, v_spacing=4)
         self.pool_scroll = SmoothScrollArea()
         self.pool_scroll.setObjectName("savedPoolScroll")
         self.pool_scroll.setWidgetResizable(True)
@@ -396,10 +470,6 @@ class SavedPanel(QFrame):
         self.pool_scroll.setWidget(self.pool)
         self.pool_scroll.viewport().setAutoFillBackground(False)
         self.pool_scroll.viewport().setStyleSheet("background-color: transparent; border: none;")
-        self.pool_scroll.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.pool_scroll.customContextMenuRequested.connect(lambda pos: self._show_empty_area_menu(self.pool_scroll.mapToGlobal(pos)))
-        self.pool.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.pool.customContextMenuRequested.connect(lambda pos: self._show_empty_area_menu(self.pool.mapToGlobal(pos)))
         layout.addWidget(self.pool_scroll, 1)
 
         self.setAcceptDrops(True)
@@ -414,6 +484,13 @@ class SavedPanel(QFrame):
         if vw <= 0:
             vw = self.width() - 24
         if vw > 0:
+            cols = 2
+            margin = 4
+            spacing = 4
+            avail_w = max(100, vw - (margin * 2) - spacing - 24)
+            chip_w = avail_w // cols
+            for chip in getattr(self, "chips", []):
+                chip.setFixedWidth(chip_w)
             self.pool.resize(vw, max(60, self.pool.height()))
             self.pool_layout.setGeometry(self.pool.rect())
         self.pool.updateGeometry()
@@ -422,18 +499,42 @@ class SavedPanel(QFrame):
     def showEvent(self, event):
         super().showEvent(event)
         self._relayout_pool()
+        QTimer.singleShot(10, self._relayout_pool)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._relayout_pool()
+        QTimer.singleShot(10, self._relayout_pool)
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        if event.type() == event.Type.WindowStateChange:
+            QTimer.singleShot(30, self._relayout_pool)
+
+    @property
+    def content(self):
+        return self.pool_scroll
+
+    def header_height(self) -> int:
+        return 48
+
+    @property
+    def toggle_btn(self):
+        if not hasattr(self, "_dummy_toggle"):
+            btn = QPushButton(f"⭐ Guardados ({len(self.chips)})", self)
+            btn.clicked.connect(lambda: self.pool_scroll.setVisible(not self.pool_scroll.isVisible()))
+            self._dummy_toggle = btn
+        self._dummy_toggle.setText(f"⭐ Guardados ({len(self.chips)})")
+        return self._dummy_toggle
 
     def apply_theme(self):
-        accent = theme.accent()
+        t = theme.tokens()
+        accent = t.accent
         self.setStyleSheet(f"""
             QFrame#savedPanel {{
-                background-color: #16171D;
-                border: 1px solid #282A33;
-                border-radius: 8px;
+                background-color: {t.bg_surface};
+                border: 1px solid {t.border_subtle};
+                border-radius: {t.border_radius}px;
             }}
             QFrame#savedPanel[dropTarget="true"] {{
                 border: 1.5px solid {accent};
@@ -458,92 +559,8 @@ class SavedPanel(QFrame):
                 QLineEdit:focus {{ border-color: {accent}; }}
             """)
 
-        if hasattr(self, "btn_add"):
-            self.btn_add.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: #171A24;
-                    border: 1px solid {accent};
-                    border-radius: 6px;
-                    padding: 6px 12px;
-                    color: #FFFFFF;
-                    font-size: 12px;
-                    font-weight: 800;
-                }}
-                QPushButton:hover {{
-                    background-color: {theme.accent_rgba(0.16)};
-                    border-color: {theme.accent_light()};
-                }}
-                QPushButton:pressed {{ background-color: #12141C; }}
-            """)
-
-        for b in getattr(self, "_buttons", [])[1:]:
-            b.setStyleSheet(f"""
-                QPushButton {{
-                    font-size: 11px;
-                    font-weight: 700;
-                    color: #C0C5D4;
-                    background-color: #171A24;
-                    border: 1px solid #2E3344;
-                    border-radius: 5px;
-                    padding: 5px 3px;
-                    font-size: 10.5px;
-                }}
-                QPushButton:hover {{
-                    background-color: #222634;
-                    border-color: {accent};
-                    color: #FFFFFF;
-                }}
-                QPushButton:pressed {{ background-color: #12141A; }}
-            """)
-
         for chip in self.chips:
             chip._apply_chip_style()
-
-    @property
-    def content(self):
-        return self.pool_scroll
-
-    def header_height(self) -> int:
-        return 48
-
-    @property
-    def toggle_btn(self):
-        if not hasattr(self, "_dummy_toggle"):
-            btn = QPushButton(f"⭐ Guardados ({len(self.chips)})", self)
-            btn.clicked.connect(lambda: self.pool_scroll.setVisible(not self.pool_scroll.isVisible()))
-            self._dummy_toggle = btn
-        self._dummy_toggle.setText(f"⭐ Guardados ({len(self.chips)})")
-        return self._dummy_toggle
-
-    def dragEnterEvent(self, event):
-        payload = payload_from(event.mimeData())
-        if payload is None or payload.get("kind") not in ("slot", "bench"):
-            event.ignore()
-            return
-        event.setDropAction(Qt.DropAction.MoveAction)
-        set_drop_highlight(self, True)
-        event.accept()
-
-    def dragMoveEvent(self, event):
-        payload = payload_from(event.mimeData())
-        if payload is None or payload.get("kind") not in ("slot", "bench"):
-            event.ignore()
-            return
-        event.setDropAction(Qt.DropAction.MoveAction)
-        event.accept()
-
-    def dragLeaveEvent(self, event):
-        set_drop_highlight(self, False)
-
-    def dropEvent(self, event):
-        payload = payload_from(event.mimeData())
-        set_drop_highlight(self, False)
-        if payload is None or payload.get("kind") not in ("slot", "bench"):
-            event.ignore()
-            return
-        event.setDropAction(Qt.DropAction.MoveAction)
-        event.accept()
-        self.player_dropped.emit(payload)
 
     def set_saved(
         self,
@@ -561,7 +578,6 @@ class SavedPanel(QFrame):
             if item.widget() is not None:
                 item.widget().deleteLater()
 
-        # Purgar selecciones de jugadores que ya no están en guardados
         saved_names_set = {p.name for p in saved}
         self.selected_names.intersection_update(saved_names_set)
         if self._last_selected not in saved_names_set:
@@ -622,7 +638,6 @@ class SavedPanel(QFrame):
         )
         if path:
             self.export_file.emit(path)
-
 
     def _select_single_chip(self, name: str):
         self.selected_names = {name}
@@ -698,9 +713,12 @@ class SavedPanel(QFrame):
         name = chip.name
         is_sp = is_special_player_name(name)
         menu = QMenu(self)
-        name = chip.name
-        is_sp = is_special_player_name(name)
-        menu = QMenu(self)
+
+        act_vip = QAction("👑 Prioridad Streamer (Garantizar Partida)", self)
+        act_vip.setCheckable(True)
+        act_vip.setChecked(getattr(chip.player, "is_vip", False))
+        act_vip.triggered.connect(lambda checked: self._toggle_chip_vip(chip, checked))
+        menu.addAction(act_vip)
 
         if not is_sp:
             act_rename = QAction("✏️ Renombrar jugador...", self)
@@ -710,10 +728,6 @@ class SavedPanel(QFrame):
         act_props = QAction("⚙️ Ajustar Habilidad / MMR...", self)
         act_props.triggered.connect(lambda: self._open_properties_modal(chip))
         menu.addAction(act_props)
-
-        act_reset_mmr = QAction("⚡ Restablecer MMR a 5", self)
-        act_reset_mmr.triggered.connect(lambda: self._reset_chip_mmr(chip))
-        menu.addAction(act_reset_mmr)
 
         act_reset_mmr = QAction("⚡ Restablecer MMR a 5", self)
         act_reset_mmr.triggered.connect(lambda: self._reset_chip_mmr(chip))
@@ -750,7 +764,6 @@ class SavedPanel(QFrame):
         menu.addAction(act_del)
 
         menu.exec(chip.mapToGlobal(pos))
-
 
     def _show_bulk_chip_menu(self, pos):
         menu = QMenu(self)
@@ -812,20 +825,37 @@ class SavedPanel(QFrame):
             chip.player.mmr_damage = dps
             chip.player.mmr_support = sup
             chip.player.auto_mmr_enabled = auto_mmr
-            chip.label.setText(chip._chip_text())
+            chip._apply_chip_style()
             self.player_role_mmr_changed.emit(chip.name, None, gen)
-
 
     def _reset_chip_mmr(self, chip: SavedChip):
         chip.player.reset_mmr(5)
-        chip.label.setText(chip._chip_text())
+        chip._apply_chip_style()
         self.player_role_mmr_changed.emit(chip.name, None, 5)
         p_win = self.window()
         if hasattr(p_win, "show_toast"):
             p_win.show_toast(f"⚡ MMR de {chip.name} restablecido a 5", "info")
 
+    def _toggle_chip_vip(self, chip: SavedChip, is_vip: bool):
+        p_win = self.window()
+        if hasattr(p_win, "roster_controller"):
+            p_win.roster_controller.set_global_player_vip(chip.name, is_vip)
+        else:
+            chip.player.is_vip = is_vip
+            chip._apply_chip_style()
+
+    def _clear_all_streamer_vips(self):
+        p_win = self.window()
+        if hasattr(p_win, "roster_controller"):
+            p_win.roster_controller.clear_all_vips()
+
     def _show_empty_area_menu(self, global_pos):
         menu = QMenu(self)
+
+        act_clear_vips = QAction("👑 Quitar todas las coronas de Streamer", self)
+        act_clear_vips.triggered.connect(self._clear_all_streamer_vips)
+        menu.addAction(act_clear_vips)
+        menu.addSeparator()
 
         act_to_bench = QAction("🪑 Enviar todos los guardados a Zona de Espera", self)
         act_to_bench.triggered.connect(self.send_all_saved_to_bench_requested.emit)

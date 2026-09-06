@@ -21,71 +21,14 @@ from PySide6.QtWidgets import (
 
 from owervach_tmixer.ui.styles import theme
 from owervach_tmixer.ui.widgets.flow_layout import FlowLayout
+from owervach_tmixer.ui.widgets.vector_button import VectorIconButton
 from .tier_card import MIME_TIER_ITEM, TierItemCard
 
 
-class TierControlBtn(QPushButton):
+class TierControlBtn(VectorIconButton):
     def __init__(self, action_type: str, tooltip: str, parent: Optional[QWidget] = None):
-        super().__init__(parent)
+        super().__init__(icon_type=action_type, tooltip=tooltip, size=(32, 26), parent=parent)
         self.action_type = action_type
-        self.setFixedSize(32, 26)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setToolTip(tooltip)
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-
-        is_hovered = self.underMouse()
-        is_pressed = self.isDown()
-        accent_col = theme.accent_color()
-
-        if self.action_type in ("up", "down"):
-            bg_col = QColor("#2D3342") if is_hovered else QColor("#1C1E26")
-            border_col = accent_col if is_hovered else QColor("#383E50")
-            icon_col = QColor("#FFFFFF") if is_hovered else accent_col
-        elif self.action_type == "clear":
-            bg_col = QColor("#3D301C") if is_hovered else QColor("#241D14")
-            border_col = QColor("#FFAA00") if is_hovered else QColor("#5A4018")
-            icon_col = QColor("#FFFFFF") if is_hovered else QColor("#FFAA00")
-        else:
-            bg_col = QColor("#461922") if is_hovered else QColor("#281318")
-            border_col = QColor("#FF4444") if is_hovered else QColor("#62202A")
-            icon_col = QColor("#FFFFFF") if is_hovered else QColor("#FF5566")
-
-        if is_pressed:
-            bg_col = bg_col.darker(130)
-
-        painter.setPen(QPen(border_col, 1))
-        painter.setBrush(QBrush(bg_col))
-        painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), 4, 4)
-
-        cx = self.width() // 2
-        cy = self.height() // 2
-
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(QBrush(icon_col))
-
-        if self.action_type == "up":
-            poly = QPolygon([QPoint(cx, cy - 4), QPoint(cx - 4, cy + 3), QPoint(cx + 4, cy + 3)])
-            painter.drawPolygon(poly)
-        elif self.action_type == "down":
-            poly = QPolygon([QPoint(cx, cy + 4), QPoint(cx - 4, cy - 3), QPoint(cx + 4, cy - 3)])
-            painter.drawPolygon(poly)
-        elif self.action_type == "clear":
-            painter.setPen(QPen(icon_col, 1.6, Qt.SolidLine, Qt.RoundCap))
-            painter.setBrush(Qt.NoBrush)
-            painter.drawArc(cx - 5, cy - 5, 10, 10, 45 * 16, 270 * 16)
-            painter.setBrush(QBrush(icon_col))
-            painter.setPen(Qt.NoPen)
-            arrow = QPolygon([QPoint(cx + 3, cy - 5), QPoint(cx + 3, cy), QPoint(cx + 7, cy - 2)])
-            painter.drawPolygon(arrow)
-        elif self.action_type == "del":
-            painter.setPen(QPen(icon_col, 2.0, Qt.SolidLine, Qt.RoundCap))
-            painter.drawLine(cx - 4, cy - 4, cx + 4, cy + 4)
-            painter.drawLine(cx + 4, cy - 4, cx - 4, cy + 4)
-
-        painter.end()
 
 class TierDropZone(QFrame):
     item_dropped = Signal(dict, QPoint)

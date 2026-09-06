@@ -143,6 +143,7 @@ class Roster:
                 wins=saved_p.wins,
                 losses=saved_p.losses,
                 draws=saved_p.draws,
+                is_vip=getattr(saved_p, "is_vip", False),
             )
         else:
             player = Player(name=name)
@@ -258,6 +259,7 @@ class Roster:
                 wins=saved_p.wins,
                 losses=saved_p.losses,
                 draws=saved_p.draws,
+                is_vip=getattr(saved_p, "is_vip", False),
             )
         elif existing_bench:
             player = existing_bench
@@ -307,6 +309,7 @@ class Roster:
                 wins=saved_p.wins,
                 losses=saved_p.losses,
                 draws=saved_p.draws,
+                is_vip=getattr(saved_p, "is_vip", False),
             )
         else:
             p = Player(name=name)
@@ -330,6 +333,7 @@ class Roster:
                 saved_p.wins = player.wins
                 saved_p.losses = player.losses
                 saved_p.draws = player.draws
+                saved_p.is_vip = getattr(player, "is_vip", False)
                 if player.fixed_role:
                     saved_p.role = player.role
                     saved_p.fixed_role = True
@@ -355,6 +359,7 @@ class Roster:
                 wins=player.wins,
                 losses=player.losses,
                 draws=player.draws,
+                is_vip=getattr(player, "is_vip", False),
             )
         )
 
@@ -389,6 +394,150 @@ class Roster:
                 team_num = free[0]
             self.set_slot(team_num, self.first_free_slot(team_num), p)
         self.bench = remaining
+
+    def rotate_bench_and_teams(
+        self,
+        streamer_rest_interval: int = 0,
+        policy: str = "continuous",
+        batch_size: int = 2,
+        min_shield: int = 2,
+        winner_team: int | None = None,
+    ) -> tuple[int, int]:
+        """
+        Multi-Policy Continuous Fair Rotation Engine (SSOT).
+        Policies supported:
+        - "continuous": Default gradual conveyor belt (batch_size players rotate, Bo2 shield).
+        - "full_batch": Swaps all waiting bench players who fit.
+        - "winner_stays": The winning team stays intact, losing team rotates with bench.
+        """
+        target_size = self.team_size * 2
+        active = [p for p in self.active_players()]
+        bench = list(self.bench)
+        total_pool = active + bench
+
+        if not bench or len(total_pool) <= target_size:
+            self.fill_from_bench()
+            return (0, 0)
+
+        # 1. Determinar Cuota de Rotación
+        if policy == "full_batch":
+            quota = min(len(bench), target_size)
+        elif policy == "winner_stays" and winner_team in (1, 2):
+            quota = min(len(bench), self.team_size)
+        else:
+            quota = max(1, min(batch_size, len(bench)))
+
+        # 2. Ranking de Entrada desde la Banca (Más tiempo esperando entra primero)
+        bench_sorted = sorted(
+            bench,
+            key=lambda p: (getattr(p, "streak_benched", 0), -getattr(p, "streak_played", 0)),
+            reverse=True,
+        )
+        entering_from_bench = bench_sorted[:quota]
+        remaining_bench = bench_sorted[quota:]
+
+        # 3. Clasificación de Jugadores Activos (Quiénes tienen escudo vs quiénes son elegibles para banca)
+        must_keep: list[Player] = []
+        eligible_to_bench: list[Player] = []
+
+        for p in active:
+            # Candado rígido de equipo
+            if p.fixed_team in (1, 2):
+                must_keep.append(p)
+                continue
+
+            # Inmunidad Streamer 👑
+            if getattr(p, "is_vip", False):
+                streak = getattr(p, "streak_played", 0)
+                if streamer_rest_interval > 0 and streak >= streamer_rest_interval:
+                    eligible_to_bench.append(p)
+                else:
+                    must_keep.append(p)
+                continue
+
+            # Modo El Ganador se Queda: Equipo ganador protegido
+            if policy == "winner_stays" and winner_team in (1, 2):
+                pos = self.slot_of(p)
+                if pos and pos[0] == winner_team:
+                    must_keep.append(p)
+                    continue
+
+            # Escudo Bo2: Permanencia mínima garantizada
+            if getattr(p, "streak_played", 0) < min_shield:
+                must_keep.append(p)
+                continue
+
+            eligible_to_bench.append(p)
+
+        needed_retention = max(0, target_size - len(entering_from_bench))
+
+        # Si el escudo retiene a demasiados, degradar suavemente a quienes más partidas lleven
+        while len(must_keep) > needed_retention:
+            relaxable = [
+                p for p in must_keep
+                if p.fixed_team not in (1, 2) and not getattr(p, "is_vip", False)
+            ]
+            if not relaxable:
+                break
+            relaxable.sort(key=lambda p: getattr(p, "streak_played", 0), reverse=True)
+            to_relax = relaxable[0]
+            must_keep.remove(to_relax)
+            eligible_to_bench.append(to_relax)
+
+        # Quien más partidas consecutivas lleve jugando, sale primero a la banca
+        eligible_to_bench.sort(key=lambda p: getattr(p, "streak_played", 0), reverse=True)
+
+        evict_count = len(entering_from_bench)
+        leaving_to_bench = eligible_to_bench[:evict_count]
+        staying_active = must_keep + eligible_to_bench[evict_count:]
+
+        selected_players = staying_active + entering_from_bench
+        unselected_players = remaining_bench + leaving_to_bench
+
+        # Actualización de Rachas
+        for p in selected_players:
+            p.streak_played = getattr(p, "streak_played", 0) + 1
+            p.streak_benched = 0
+
+        for p in unselected_players:
+            p.streak_benched = getattr(p, "streak_benched", 0) + 1
+            p.streak_played = 0
+            self._reset_for_bench(p)
+
+        # Distribución en celdas preservando candados
+        t1: list[Player | None] = [None] * self.team_size
+        t2: list[Player | None] = [None] * self.team_size
+        unassigned: list[Player] = []
+
+        for p in selected_players:
+            if p.fixed_team == 1:
+                idx = next((i for i, slot in enumerate(t1) if slot is None), None)
+                if idx is not None:
+                    t1[idx] = p
+                else:
+                    unassigned.append(p)
+            elif p.fixed_team == 2:
+                idx = next((i for i, slot in enumerate(t2) if slot is None), None)
+                if idx is not None:
+                    t2[idx] = p
+                else:
+                    unassigned.append(p)
+            else:
+                unassigned.append(p)
+
+        for p in unassigned:
+            free1 = next((i for i, slot in enumerate(t1) if slot is None), None)
+            free2 = next((i for i, slot in enumerate(t2) if slot is None), None)
+            if free1 is not None:
+                t1[free1] = p
+            elif free2 is not None:
+                t2[free2] = p
+
+        self.team1_slots = t1
+        self.team2_slots = t2
+        self.bench = unselected_players
+
+        return (len(entering_from_bench), len(leaving_to_bench))
 
     # ------------------------------------------------------------------ #
     # Drag & drop relocation

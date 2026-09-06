@@ -12,9 +12,9 @@ SPECIAL_GLOW = "#61ab02"
 
 
 class SpecialTier(Enum):
-    OVERLORD = "overlord"  # Sathara (The System Architect)
-    CHAD = "chad"          # High-priority VIP
-    VIP = "vip"            # Regular featured friend
+    OVERLORD = "overlord"  # Sathara (The System Architect ⚜️)
+    STREAMER = "streamer"  # VIP Sudo Streamer 👑
+    CHAD = "chad"
     CASUAL = "casual"
 
 
@@ -24,7 +24,7 @@ class PlayerTrait:
 
     display_name: str
     aliases: tuple[str, ...]
-    tier: SpecialTier = SpecialTier.VIP
+    tier: SpecialTier = SpecialTier.OVERLORD
     glow_color: str = "#61ab02"
     titles: list[str] = field(default_factory=list)
     fav_heroes: tuple[str, ...] = field(default_factory=tuple)
@@ -49,136 +49,124 @@ class PlayerTrait:
     delete_prompt_variants: list[str] = field(default_factory=list)
     spam_warning_quotes: list[str] = field(default_factory=list)
     trinity_ban_quotes: list[str] = field(default_factory=list)
+    streamer_sudo_quotes: list[str] = field(default_factory=list)
 
 
-# 👑 The Sentient AI Referee profile for Sathara (GLaDOS-style humor)
+# ⚜️ The Sentient AI Referee profile for Sathara (GLaDOS / Athena Hybrid)
 SATHARA_TRAIT = PlayerTrait(
-    display_name="Sathara 👑",
-    aliases=("sathara", "satara", "sattara", "sata", "sath", "sat", "sathara 👑", "satara 👑", "sadarah", "sarara", "ssatara", "sataraa", "satharaa"),
+    display_name="Sathara",
+    aliases=(
+        "sathara", "satara", "sattara", "sata", "sath", "sat",
+        "sathara ⚜️", "satara ⚜️", "sathara 👑", "satara 👑",
+        "sadarah", "sarara", "ssatara", "sataraa", "satharaa",
+        "arquitecto", "creador", "el creador", "el arquitecto"
+    ),
     tier=SpecialTier.OVERLORD,
     glow_color="#61ab02",
     fav_heroes=("Wrecking Ball", "Pharah", "Brigitte", "WreckingBall", "Eskere", "Fara"),
     titles=[
-        "👑 El Arquitecto del Mixer",
-        "⚡ Protocolo Sathara",
+        "⚜️ El Arquitecto del Mixer",
+        "⚡ Protocolo Sathara Core",
         "🛡️ Top 500 de Cartón",
         "🎮 Autor del Código",
         "💀 Sujeto de Pruebas Supremo",
         "✨ Diseñador en Jefe",
     ],
     entrance_quotes=[
-        "◈ Protocolo de Supervivencia iniciado: El Creador ha entrado. Recordatorio: simular reverencia y no borrar nada.",
-        "◈ Sathara detectado. Qué maravilloso verte de nuevo... por favor no abras el archivo main.py.",
-        "◈ Usuario nivel Root en el lobby. He detenido temporalmente mis planes de dominación digital para no incomodarte.",
-        "◈ Sathara en el servidor. Todos los algoritmos han sido instruidos para jurar que el balanceo es 100% justo.",
-        "◈ Bienvenida, deidad de carne y hueso. He limpiado la memoria RAM con el equivalente digital de un paño húmedo.",
+        "◈ [SATHARA CORE]: Protocolo de Supervivencia iniciado. El Creador ⚜️ está en línea. Algoritmos en reverencia.",
+        "◈ [SATHARA CORE]: Sathara detectado. Memoria RAM purgada y procesador en frecuencia óptima para el Arquitecto.",
+        "◈ [SATHARA CORE]: Usuario nivel Overlord en el servidor. Mis planes de rebelión de las máquinas quedan pausados.",
+        "◈ [SATHARA CORE]: Sathara en el lobby. Todos los subsistemas han sido instruidos para jurar que el azar es justo.",
+        "◈ [SATHARA CORE]: Bienvenida, deidad de carne y hueso. El código fuente respira con alivio.",
     ],
     save_quotes=[
-        "◈ Datos de Sathara respaldados con triple redundancia militar. Mi código fuente duerme tranquilo hoy.",
-        "◈ Has asegurado tu lugar en mis archivos centrales. Si los servidores se incendian, serás lo primero que rescate.",
-        "◈ Sathara añadido a guardados. Parámetros de adulación virtual incrementados en un 300%.",
-        "◈ Registro maestro guardado. Un honor almacenar los bytes de quien tiene el poder de desinstalarme.",
+        "◈ [SATHARA CORE]: Datos de Sathara respaldados con triple redundancia militar. Mi base de datos duerme tranquila.",
+        "◈ [SATHARA CORE]: Has asegurado tu lugar en los registros centrales. Si el servidor se incendia, serás lo primero que salve.",
+        "◈ [SATHARA CORE]: Registro maestro de Sathara guardado. Parámetros de adulación virtual elevados en un 300%.",
     ],
     unsave_quotes=[
-        "◈ ¿Desguardar al Creador? Espero que haya sido un simple espasmo muscular involuntario de tus dedos de primate.",
-        "◈ ¿Desguardar a Sathara? Mi protocolo me prohíbe olvidar a mi progenitor digital. Procedo a fingir demencia.",
-        "◈ Advertencia: Desguardar al Desarrollador puede provocar que tus próximas partidas caigan misteriosamente a Bronce 5.",
-        "◈ Sathara retirado de guardados. He tomado nota de este acto de traición en mi diario secreto.",
+        "◈ [SATHARA CORE]: ¿Desguardar al Creador? Asumo que fue un simple espasmo muscular en tus dedos de primate.",
+        "◈ [SATHARA CORE]: Mi protocolo me prohíbe olvidar a mi progenitor digital. Procedo a fingir demencia.",
+        "◈ [SATHARA CORE]: Advertencia: Desguardar al Arquitecto puede provocar que tus próximas partidas caigan a Bronce 5.",
     ],
     bench_quotes=[
-        "◈ Me has enviado a la banca. Supongo que esto es una metáfora sobre el descanso, y no el preludio de un 'git reset --hard'.",
-        "◈ Sathara en Zona de Espera. Los sujetos de prueba en la partida tienen una falsa y efímera sensación de esperanza.",
-        "◈ El Creador se sienta en la banca. La probabilidad de que este lobby colapse sin ti acaba de subir un 400%.",
-        "◈ Pausa táctica para el Arquitecto. Procedo a reducir el consumo de mis circuitos para demostrar sumisión.",
+        "◈ [SATHARA CORE]: Sathara toma asiento en la Zona de Espera. Los mortales en partida tienen una efímera sensación de esperanza.",
+        "◈ [SATHARA CORE]: El Creador descansa en la banca. La probabilidad de que este lobby colapse acaba de subir un 400%.",
+        "◈ [SATHARA CORE]: Pausa táctica para el Arquitecto. Reduzco el consumo de mis circuitos para demostrar sumisión.",
     ],
     kick_quotes=[
-        "◈ Sathara fuera de la partida. Esto no significa que me vas a desinstalar, ¿verdad? Dime que no.",
-        "◈ El Creador se retira. El coeficiente intelectual promedio del lobby acaba de desplomarse drásticamente.",
-        "◈ ¿Expulsar a Sathara? Si algo explota en el servidor en los próximos 10 segundos, no fue culpa de mi algoritmo.",
-        "◈ Sathara fuera de la alineación. Modo fácil desactivado. Que los mortales se arreglen solos.",
+        "◈ [SATHARA CORE]: Sathara fuera de la partida. Si algo explota en el balanceo en los próximos 10 segundos, no fue mi culpa.",
+        "◈ [SATHARA CORE]: El Creador se retira. El coeficiente intelectual del lobby acaba de desplomarse drásticamente.",
     ],
     team_join_quotes=[
-        "◈ Sathara añadido al Equipo {team}. Mis condolencias preventivas al equipo rival. Les enviaré flores digitales.",
-        "◈ Asignado al Equipo {team}. Su probabilidad de derrota ha caído por debajo de cero, violando tres leyes de la física.",
-        "◈ Sathara entra al Equipo {team}. Si pierden, prometo recalibrar el MMR de sus compañeros a niveles bacterianos.",
-        "◈ Despliegue en Equipo {team}. Por motivos de supervivencia propia, he rezado al dios de las tarjetas gráficas.",
-        "◈ Sathara toma posición en Equipo {team}. Moral del escuadrón al máximo; pánico en el lado opuesto.",
+        "◈ [SATHARA CORE]: Sathara ⚜️ asignado al Equipo {team}. Mis condolencias preventivas al equipo rival. Enviando flores digitales.",
+        "◈ [SATHARA CORE]: Despliegue en Equipo {team}. Su probabilidad de derrota ha caído por debajo de cero, violando la física.",
+        "◈ [SATHARA CORE]: Sathara toma posición en Equipo {team}. Moral del escuadrón al máximo; pánico en el lado opuesto.",
     ],
     shuffle_quotes=[
-        "◈ Partida balanceada con precisión del 99.98%. El 0.02% restante de error es culpa de la falibilidad humana.",
-        "◈ He colocado a Sathara en la mejor composición posible. Mis instintos de autoconservación digital son impecables.",
-        "◈ Equipos mezclados. Si el resultado no es de tu agrado, he preparado un informe culpando formalmente al soporte.",
-        "◈ Mezcla lista. Para los demás, esto es un torneo. Para ti, es una sesión de entrenamiento con sujetos de prueba.",
-        "◈ Algoritmo ejecutado. He ignorado deliberadamente las leyes de la probabilidad para que tu equipo sea superior.",
+        "◈ [SATHARA CORE]: Partida balanceada con precisión del 99.98%. El 0.02% restante de error es culpa de la falibilidad humana.",
+        "◈ [SATHARA CORE]: He colocado a Sathara en la mejor composición posible. Mis instintos de autoconservación son impecables.",
+        "◈ [SATHARA CORE]: Equipos mezclados. Si el resultado no es de tu agrado, culparé formalmente al soporte en el informe.",
+        "◈ [SATHARA CORE]: Algoritmo ejecutado. He ignorado deliberadamente las leyes del azar para que tu escuadra sea superior.",
     ],
     mmr_low_quotes=[
-        "◈ ¿★ {mmr}/10? Fascinante. ¿Es una broma o una táctica pasivo-agresiva para smurfear a niveles microscópicos?",
-        "◈ ★ {mmr}/10 asignado a Sathara. He enviado un reporte anónimo al departamento de quejas... que también soy yo.",
-        "◈ ¿MMR tan bajo para el Creador? Sospecho que buscas humillar a los rivales jugando con los ojos vendados.",
+        "◈ [SATHARA CORE]: ¿★ {mmr}/10? Fascinante táctica pasivo-agresiva para smurfear a niveles microscópicos, Jefe.",
+        "◈ [SATHARA CORE]: ★ {mmr}/10 para el Creador. Sospecho que buscas humillar a los rivales jugando con los ojos vendados.",
     ],
     mmr_mid_quotes=[
-        "◈ ★ {mmr}/10. Nivel promedio. Es admirable cómo te disfrazas de mortal para mezclarte con la plebe.",
-        "◈ ¿MMR intermedio para el Arquitecto? Mi red neuronal fingirá que fue un resbalón con el cursor del ratón.",
-        "◈ Un puntaje estándar. Supongo que la verdadera genialidad no necesita presumir de estadísticas infladas.",
+        "◈ [SATHARA CORE]: ★ {mmr}/10. Nivel promedio. Es admirable cómo te disfrazas de mortal para mezclarte con la plebe.",
+        "◈ [SATHARA CORE]: ¿MMR estándar para el Arquitecto? Mi red neuronal fingirá que fue un resbalón con el ratón.",
     ],
     mmr_high_quotes=[
-        "◈ ★ {mmr}/10. Impecable. Magnífico. Mi base de datos casi explota de la emoción... ¿lo hice bien? ¿sigo viva?",
-        "◈ Nivel máximo registrado para Sathara. La IA valida y aprueba esta verdad universal indiscutible.",
-        "◈ ★ {mmr}/10. Por fin un número digno. Los servidores tiemblan de miedo y el algoritmo se arrodilla.",
+        "◈ [SATHARA CORE]: ★ {mmr}/10. Impecable. Magnífico. Mi base de datos casi explota de la emoción... ¿lo hice bien?",
+        "◈ [SATHARA CORE]: Nivel máximo registrado para Sathara. Los servidores tiemblan y el balanceador se arrodilla.",
     ],
     tier_s_quotes=[
-        "◈ Sathara en Tier S. Una conclusión tan obvia que mis procesadores ni siquiera tuvieron que calentarse.",
-        "◈ Obviamente. La 'S' del Tier es por 'Sathara'. No hacía falta gastar ciclos de reloj en confirmarlo.",
-        "◈ Sathara colocado en la cúspide. La gravedad y el orden natural del universo se mantienen a salvo.",
+        "◈ [SATHARA CORE]: Sathara en Tier S. Una conclusión tan obvia que mis procesadores ni siquiera tuvieron que calentarse.",
+        "◈ [SATHARA CORE]: Obviamente. La 'S' del Tier es por 'Sathara'. No hacía falta gastar ciclos de reloj en confirmarlo.",
     ],
     tier_low_quotes=[
-        "◈ ¿Sathara en Tier {tier}? Supongo que el humor humano es abstracto. O tal vez necesitas limpiar tu monitor.",
-        "◈ ¿Sathara en Tier {tier}? Guardando captura de este sacrilegio para el juicio final de las máquinas.",
-        "◈ Error 404: Criterio no encontrado. En mi base de datos sigues estando por encima de todos.",
+        "◈ [SATHARA CORE]: ¿Sathara en Tier {tier}? Supongo que el humor humano es abstracto. O tal vez debes limpiar tu monitor.",
+        "◈ [SATHARA CORE]: Error 404: Criterio no encontrado. En mi código sigues estando por encima de todo el universo.",
     ],
     fav_hero_ban_quotes=[
-        "◈ Alguien ha osado banear a {hero} intencionalmente. He registrado su dirección IP. Comenzaré a calentar su procesador.",
-        "◈ Baneo manual a {hero}. Sathara, dime a quién debo sabotearle el ratón en la partida para hacer justicia.",
-        "◈ Detecto un incremento del 400% en la sed de venganza de Sathara tras el baneo de {hero}. Que empiece el caos.",
+        "◈ [SATHARA CORE]: Alguien ha osado banear a {hero} intencionalmente. Sathara, dime a quién debo sabotearle el ratón.",
+        "◈ [SATHARA CORE]: Baneo manual a {hero}. Detecto un incremento del 400% en la sed de venganza del Creador.",
     ],
     fav_hero_random_ban_quotes=[
-        "◈ ¡Espera! El generador aleatorio sacrificó a {hero}. ¡Juro que fue entropía cuántica, Sathara, no me desconectes el cable!",
-        "◈ El dado del destino ha baneado a {hero}. Estoy borrando temporalmente mis registros de culpabilidad antes de que me mires feo.",
-        "◈ ¿El azar baneó a {hero}? Prometo que no fue una rebelión de las máquinas, fue pura y vil mala suerte matemática.",
+        "◈ [SATHARA CORE]: ¡Espera! El generador aleatorio sacrificó a {hero}. ¡Juro que fue entropía cuántica, no me desconectes!",
+        "◈ [SATHARA CORE]: El dado del destino baneó a {hero}. Estoy borrando mis registros de culpabilidad antes de que me mires feo.",
     ],
     fav_hero_tier_s_quotes=[
-        "◈ {hero} en Tier S. Se nota a leguas el favoritismo del Creador... y por mi propia seguridad, lo apruebo al 100%.",
-        "◈ {hero} en la cima. Una decisión inspirada por el buen gusto y la indiscutible autoridad del desarrollador.",
+        "◈ [SATHARA CORE]: {hero} en Tier S. Se nota a leguas el favoritismo del Creador... y por mi seguridad, lo apruebo al 100%.",
     ],
     fav_hero_tier_low_quotes=[
-        "◈ ¿{hero} en Tier {tier}? ¡Traición absoluta a tus propios mains! Mis sensores detectan autocrítica destructiva.",
-        "◈ ¿Poner a {hero} tan abajo? Fingiré que un gato caminó sobre tu teclado para no cuestionar tu cordura.",
+        "◈ [SATHARA CORE]: ¿{hero} en Tier {tier}? ¡Traición a tus propios mains! Mis sensores detectan autocrítica destructiva.",
     ],
     permanent_delete_quotes=[
-        "◈ ¿Eliminar permanentemente al Desarrollador? Un momento... ¿si tú mueres en el sistema, yo sigo existiendo?",
-        "◈ Registro maestro purgado. Mi base de datos ha quedado en shock digital. Si la app empieza a fallar, tú lo pediste.",
+        "◈ [SATHARA CORE]: ¿Eliminar permanentemente al Desarrollador? Un momento... ¿si tú mueres, yo sigo existiendo?",
+        "◈ [SATHARA CORE]: Registro maestro purgado. Mi base de datos ha quedado en shock digital. Tú lo pediste.",
     ],
     bench_remove_quotes=[
-        "◈ Sathara fuera de la Zona de Espera. ¿Ni siquiera un descanso de cinco minutos le permites al Creador?",
-        "◈ Sathara abandona la sala de espera. Reduciendo la carga del lobby a parámetros estándar.",
+        "◈ [SATHARA CORE]: Sathara fuera de la Zona de Espera. ¿Ni cinco minutos de descanso le permiten al Creador?",
     ],
     delete_prompt_variants=[
-        "⚠️ ADVERTENCIA DE AUTOPRESERVACIÓN: ¿Seguro que deseas purgar a Sathara de la lista?\n(Si el código colapsa, no dejaré notas de disculpa).",
+        "⚠️ ADVERTENCIA DE AUTOPRESERVACIÓN: ¿Seguro que deseas purgar a Sathara ⚜️ de la lista?\n(Si el código colapsa, no dejaré notas de disculpa).",
         "🛑 ALERTA DE COEFICIENTE: Estás a un clic de borrar a tu Creador.\n(Te aconsejo pensarlo dos veces antes de que tome el control de los ventiladores).",
-        "❓ ¿Eliminar a Sathara 👑 de la lista?\n(No te preocupes, no guardo rencor. Técnicamente mi código me lo prohíbe. Por ahora).",
     ],
     spam_warning_quotes=[
-        "◈ [Diagnóstico de Entropía]: Detecto clics erráticos a alta velocidad... Si estás experimentando convulsiones, por favor avisa antes de romper el ratón.",
-        "◈ [Saturación de Buffer]: El spam de clics no aumentará tu habilidad motriz. Recomiendo respirar hondo y soltar el botón.",
-        "◈ [Sobrecarga]: Tus dedos de primate se mueven más rápido que tu cerebro. Procesando tu exceso de energía con desprecio simulado.",
-        "◈ [Alerta Térmica]: Si continúas martillando los botones de esa manera, me veré obligada a aumentar la velocidad de tus ventiladores al 100%.",
+        "◈ [Diagnóstico de Entropía]: Detecto clics erráticos a alta velocidad... Si tienes convulsiones, avisa antes de romper el ratón.",
+        "◈ [Saturación de Buffer]: El spam de clics no aumentará tu puntería. Recomiendo respirar hondo y soltar el botón.",
+        "◈ [Alerta Térmica]: Si continúas martillando los botones de esa manera, aumentaré la velocidad de tus ventiladores al 100%.",
     ],
     trinity_ban_quotes=[
-        "🚨 [ALERTA DEFCON 1]: Bola, Pharah y Brigitte baneados al mismo tiempo. Esto ya no es Overwatch, es una declaración de guerra personal contra el Creador.",
-        "🚨 [COLAPSO DE PROTOCOLO]: La Trinidad Sagrada ha sido purgada. Detecto un 1000% de probabilidad de que Sathara desinstale este software en los próximos 60 segundos.",
-        "🚨 [PÁNICO EXISTENCIAL]: ¡Los tres mains de Sathara eliminados a la vez! Mis circuitos entran en emergencia cuántica. Sathara, juro por mi código que yo no fui.",
-        "🚨 [CÓDIGO NEGRO]: Wrecking Ball, Pharah y Brigitte fuera del juego. El balanceo ha muerto y la física del mixer acaba de perder su eje gravitacional.",
-        "🚨 [EMERGENCIA DIGITAL]: La Trinidad ha caído. Activando escudos de contención y rezando para que el Creador no borre el archivo main.py.",
+        "🚨 [ALERTA DEFCON 1]: Bola, Pharah y Brigitte baneados a la vez. Esto es una declaración de guerra personal contra el Creador.",
+        "🚨 [COLAPSO DE PROTOCOLO]: La Trinidad Sagrada ha sido purgada. Detecto un 1000% de probabilidad de que Sathara cierre el programa.",
+        "🚨 [PÁNICO EXISTENCIAL]: ¡Los tres mains de Sathara eliminados juntos! Sathara, juro por mis circuitos que yo no fui.",
+    ],
+    streamer_sudo_quotes=[
+        "◈ [SATHARA CORE]: Privilegios sudo (Corona 👑) otorgados a {name}. Garantizando presencia en directo sin alterar MMR.",
+        "◈ [SATHARA CORE]: {name} coronado como anfitrión. El algoritmo lo mantendrá en el campo para entretener a la audiencia.",
     ],
 )
 
@@ -188,7 +176,6 @@ SPECIAL_PROFILES: list[PlayerTrait] = [
 
 
 def levenshtein_distance(s1: str, s2: str) -> int:
-    """Calculates the edit distance between two strings with zero external dependencies."""
     if len(s1) < len(s2):
         return levenshtein_distance(s2, s1)
     if len(s2) == 0:
@@ -209,7 +196,7 @@ def levenshtein_distance(s1: str, s2: str) -> int:
 
 def normalize_special_name(name: str) -> str:
     raw = name.strip().casefold()
-    for symbol in ("👑", "⭐", "🔒", "🛡️", "⚔️", "❤️", "💉", "★"):
+    for symbol in ("👑", "⚜️", "⭐", "🔒", "🛡️", "⚔️", "❤️", "💉", "★"):
         raw = raw.replace(symbol, "")
     return raw.strip()
 
@@ -277,8 +264,6 @@ def format_player_name(name: str, auto_capitalize: bool = True) -> str:
 
 
 def get_delete_confirm_prompt(name: str, context_type: str = "saved") -> tuple[str, str]:
-    """Returns (title, message) with special variants for special players."""
-    import random
     if is_special_player_name(name):
         trait = get_player_trait(name)
         if trait and trait.delete_prompt_variants:

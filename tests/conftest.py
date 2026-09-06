@@ -3,7 +3,16 @@
 import os
 import platformdirs
 import pytest
-from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QApplication, QMessageBox
+
+
+@pytest.fixture(scope="session")
+def qapp():
+    """Standalone QApplication singleton fixture (inmune a dependencias externas)."""
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication([])
+    return app
 
 os.environ["QT_QPA_PLATFORM"] = os.environ.get("QT_QPA_PLATFORM", "offscreen")
 

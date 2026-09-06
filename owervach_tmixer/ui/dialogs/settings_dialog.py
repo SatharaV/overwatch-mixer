@@ -1,7 +1,6 @@
-"""Settings dialog with modular categories, live theme synchronization, and user-reorderable navigation pills."""
+"""Settings dialog with modular categories, persistent geometry, theme switcher, and reactive Apply."""
 
 from __future__ import annotations
-from owervach_tmixer.ui.widgets.smooth_scroll import SmoothScrollArea
 
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable
@@ -11,15 +10,18 @@ from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QAction, QColor
 from PySide6.QtWidgets import (
     QButtonGroup,
+    QCheckBox,
     QColorDialog,
+    QComboBox,
     QDialog,
     QFileDialog,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMenu,
     QMessageBox,
     QPushButton,
-    QScrollArea,
+    QSpinBox,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -31,6 +33,8 @@ from owervach_tmixer.core.settings import SettingsManager
 from owervach_tmixer.core.shuffle_history import ShuffleHistoryManager
 from owervach_tmixer.ui.styles import theme
 from owervach_tmixer.ui.widgets.map_widget import ScrollablePillsWidget
+from owervach_tmixer.ui.widgets.smooth_scroll import SmoothScrollArea
+from owervach_tmixer.ui.dialogs.common_geometry import PersistentGeometryMixin
 
 from .settings_tabs.common import NoWheelEventFilter
 from .settings_tabs.tab_appearance import build_appearance_tab
@@ -67,8 +71,26 @@ TAB_REGISTRY: dict[str, tuple[str, Callable]] = {
 }
 
 
-class SettingsDialog(QDialog):
-    """Modern esports settings dialog with 7 decoupled categories and live reorderable pill bar."""
+class _SettingsPageWidget(QWidget):
+    """Contenedor de pestaña que neutraliza su minimumSizeHint horizontal para evitar que fuerce scrollbar."""
+    def minimumSizeHint(self):
+        s = super().minimumSizeHint()
+        from PySide6.QtCore import QSize
+        return QSize(0, s.height())
+
+
+class _SettingsScrollArea(SmoothScrollArea):
+    """ScrollArea que acopla rígidamente el ancho de su contenido al ancho visible del viewport."""
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if self.widget():
+            vw = self.viewport().width()
+            if self.widget().width() != vw:
+                self.widget().setFixedWidth(vw)
+
+
+class SettingsDialog(QDialog, PersistentGeometryMixin):
+    """Modern esports settings dialog with 8 decoupled categories, persistent geometry, and live theme engine."""
 
     def __init__(
         self,
@@ -80,21 +102,34 @@ class SettingsDialog(QDialog):
         self.settings_manager = settings_manager
         self.shuffle_history = shuffle_history
         self.setWindowTitle("Configuración del Sistema")
-        self.resize(760, 800)
-        self.setMinimumSize(680, 620)
         self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowCloseButtonHint)
-        self.setStyleSheet("background-color: #121316;")
+        self.setStyleSheet(theme.build_stylesheet())
 
         raw_order = getattr(self.settings_manager.settings, "settings_tab_order", DEFAULT_TAB_ORDER)
-        # Deduplicar preservando el orden exacto de TAB_REGISTRY
         valid_raw = [k for k in raw_order if k in TAB_REGISTRY]
         self._tab_order = list(dict.fromkeys(valid_raw + [k for k in DEFAULT_TAB_ORDER if k in TAB_REGISTRY]))
 
         self._pages_by_key: dict[str, QWidget] = {}
         self._buttons_by_key: dict[str, QPushButton] = {}
+        self._is_loading = True
+        self._has_pending_changes = False
+
+        # Guardar estado original para reversión armónica en caso de cancelar
+        self._original_theme_name = getattr(self.settings_manager.settings, "theme_name", "obsidian")
+        self._original_accent = self.settings_manager.settings.accent_color
 
         self._setup_ui()
         self._load_settings()
+        self._connect_dirty_listeners()
+        self._is_loading = False
+        self._update_apply_button_state()
+
+        self.setup_persistent_geometry(
+            settings_manager=self.settings_manager,
+            window_id="settings_dialog",
+            default_size=(720, 620),
+            min_size=(580, 480),
+        )
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -103,32 +138,32 @@ class SettingsDialog(QDialog):
 
         # 1. Header Bar
         top_bar = QWidget()
-        top_bar.setStyleSheet("background-color: #16171B; border-bottom: 1px solid #282A33;")
-        top_bar.setFixedHeight(50)
+        top_bar.setStyleSheet("background-color: #16171E; border-bottom: 1px solid #262936;")
+        top_bar.setFixedHeight(48)
         top_layout = QHBoxLayout(top_bar)
-        top_layout.setContentsMargins(18, 0, 18, 0)
+        top_layout.setContentsMargins(16, 0, 16, 0)
 
         self.title_label = QLabel("⚙️  CONFIGURACIÓN DEL SISTEMA")
         self.title_label.setStyleSheet(
-            f"font-size: 14px; font-weight: 900; color: {theme.accent()}; letter-spacing: 0.5px;"
+            f"font-size: 13px; font-weight: 900; color: {theme.accent()}; letter-spacing: 0.8px;"
         )
         top_layout.addWidget(self.title_label)
         top_layout.addStretch()
 
-        btn_tip = QLabel("💡 Clic derecho en pestañas para reordenar")
-        btn_tip.setStyleSheet("font-size: 11px; color: #6F7380; font-weight: 600;")
+        btn_tip = QLabel("💡 Clic derecho para reordenar")
+        btn_tip.setStyleSheet("font-size: 11px; color: #6E7484; font-weight: 600; background: transparent; border: none;")
         top_layout.addWidget(btn_tip)
         layout.addWidget(top_bar)
 
         self._no_wheel_filter = NoWheelEventFilter(self)
         self.installEventFilter(self._no_wheel_filter)
 
-        # 2. Master Navigation Bar con ScrollablePillsWidget
+        # 2. Master Navigation Bar
         self.nav_wrapper = QWidget()
-        self.nav_wrapper.setStyleSheet("background-color: #16171B; border-bottom: 1px solid #282A33;")
-        self.nav_wrapper.setFixedHeight(50)
+        self.nav_wrapper.setStyleSheet("background-color: #14151C; border-bottom: 1px solid #262936;")
+        self.nav_wrapper.setFixedHeight(46)
         self.nw_layout = QHBoxLayout(self.nav_wrapper)
-        self.nw_layout.setContentsMargins(10, 4, 10, 4)
+        self.nw_layout.setContentsMargins(8, 3, 8, 3)
 
         self.pills_bar = ScrollablePillsWidget(self.nav_wrapper)
         self._tab_group = QButtonGroup(self)
@@ -136,12 +171,13 @@ class SettingsDialog(QDialog):
         self._tab_buttons: list[QPushButton] = []
         self._settings_stack = QStackedWidget()
 
-        # Construir todas las 7 páginas
         for key, (label, creator_fn) in TAB_REGISTRY.items():
-            scroll = SmoothScrollArea()
+            # Fix global arquitectónico: Contención estricta al ancho del viewport en todas las pestañas
+            scroll = _SettingsScrollArea()
             scroll.setWidgetResizable(True)
             scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
             scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+            scroll.horizontalScrollBar().setEnabled(False)
             scroll.setStyleSheet("""
                 QScrollArea { background-color: transparent; border: none; }
                 QScrollBar:vertical {
@@ -158,13 +194,18 @@ class SettingsDialog(QDialog):
                 QScrollBar::handle:vertical:hover {
                     background: #61ab02;
                 }
+                QScrollBar:horizontal {
+                    height: 0px;
+                    border: none;
+                    background: transparent;
+                }
             """)
 
-            page = QWidget()
+            page = _SettingsPageWidget()
             page.setStyleSheet("background-color: transparent;")
             page_layout = QVBoxLayout(page)
-            page_layout.setContentsMargins(20, 18, 20, 18)
-            page_layout.setSpacing(14)
+            page_layout.setContentsMargins(14, 10, 14, 10)
+            page_layout.setSpacing(12)
             creator_fn(self, page_layout)
             page_layout.addStretch()
 
@@ -177,6 +218,186 @@ class SettingsDialog(QDialog):
         self.nw_layout.addWidget(self.pills_bar)
         layout.addWidget(self.nav_wrapper)
         layout.addWidget(self._settings_stack, 1)
+
+        # 3. Footer Bar: Tríada [ Aceptar ] [ Cancelar ] [ Aplicar ]
+        footer_bar = QWidget()
+        footer_bar.setStyleSheet("background-color: #14151B; border-top: 1px solid #242734;")
+        footer_bar.setFixedHeight(50)
+        footer_layout = QHBoxLayout(footer_bar)
+        footer_layout.setContentsMargins(14, 0, 14, 0)
+        footer_layout.setSpacing(8)
+
+        btn_reset_defaults = QPushButton("↺ Predeterminados")
+        btn_reset_defaults.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_reset_defaults.setStyleSheet("""
+            QPushButton {
+                font-size: 11px;
+                font-weight: 700;
+                color: #A0A5B5;
+                background-color: #1C1E26;
+                border: 1px solid #2C2F3C;
+                border-radius: 6px;
+                padding: 6px 12px;
+            }
+            QPushButton:hover {
+                color: #FFAA00;
+                border-color: #784E12;
+                background-color: #272015;
+            }
+        """)
+        btn_reset_defaults.clicked.connect(self._confirm_reset_defaults)
+        footer_layout.addWidget(btn_reset_defaults)
+
+        footer_layout.addStretch()
+
+        self.btn_accept = QPushButton("Aceptar")
+        self.btn_accept.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_accept.setProperty("primary", True)
+        self.btn_accept.setStyleSheet(f"""
+            QPushButton {{
+                font-size: 12px;
+                font-weight: 700;
+                color: #FFFFFF;
+                background-color: {theme.accent()};
+                border: 1px solid {theme.accent_light()};
+                border-radius: 6px;
+                padding: 6px 18px;
+            }}
+            QPushButton:hover {{
+                background-color: {theme.accent_lighter()};
+                border-color: #FFFFFF;
+            }}
+        """)
+        self.btn_accept.clicked.connect(self.accept)
+        footer_layout.addWidget(self.btn_accept)
+
+        self.btn_cancel = QPushButton("Cancelar")
+        self.btn_cancel.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_cancel.setStyleSheet("""
+            QPushButton {
+                font-size: 12px;
+                font-weight: 700;
+                color: #C6CAD6;
+                background-color: #1E212B;
+                border: 1px solid #2F3342;
+                border-radius: 6px;
+                padding: 6px 16px;
+            }
+            QPushButton:hover {
+                background-color: #282C3A;
+                border-color: #3F4558;
+                color: #FFFFFF;
+            }
+        """)
+        self.btn_cancel.clicked.connect(self.reject)
+        footer_layout.addWidget(self.btn_cancel)
+
+        self.btn_apply = QPushButton("Aplicar")
+        self.btn_apply.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_apply.clicked.connect(self._on_apply_clicked)
+        footer_layout.addWidget(self.btn_apply)
+
+        layout.addWidget(footer_bar)
+
+    def _on_theme_skin_selected(self, index: int):
+        """Maneja la selección de tema: requiere confirmación explícita (Aplicar o Aceptar)."""
+        tid = self.cb_theme_skin.currentData()
+        themes_reg = theme.get_theme_manager().get_registered_themes()
+        if tid in themes_reg:
+            _, desc = themes_reg[tid]
+            self.lbl_theme_desc.setText(desc)
+
+        if not self._is_loading:
+            # No se aplica inmediatamente; se requiere presionar Aplicar o Aceptar
+            self._mark_dirty()
+
+    def _apply_dialog_theme(self):
+        """Re-renderiza estilos dinámicos dentro de la ventana de configuración."""
+        accent = theme.accent()
+        self.title_label.setStyleSheet(
+            f"font-size: 13px; font-weight: 900; color: {accent}; letter-spacing: 0.8px;"
+        )
+        self.btn_accept.setStyleSheet(f"""
+            QPushButton {{
+                font-size: 12px;
+                font-weight: 700;
+                color: #FFFFFF;
+                background-color: {accent};
+                border: 1px solid {theme.accent_light()};
+                border-radius: 6px;
+                padding: 6px 18px;
+            }}
+            QPushButton:hover {{
+                background-color: {theme.accent_lighter()};
+                border-color: #FFFFFF;
+            }}
+        """)
+        for btn in self._tab_buttons:
+            self._apply_pill_style(btn)
+        self._update_apply_button_state()
+
+    def _mark_dirty(self):
+        """Notifica que se produjo un cambio pendiente y activa el botón Aplicar."""
+        if self._is_loading:
+            return
+        self._has_pending_changes = True
+        self._update_apply_button_state()
+
+    def _update_apply_button_state(self):
+        accent = theme.accent()
+        if self._has_pending_changes:
+            self.btn_apply.setEnabled(True)
+            self.btn_apply.setStyleSheet(f"""
+                QPushButton {{
+                    font-size: 12px;
+                    font-weight: 700;
+                    color: #FFFFFF;
+                    background-color: #222838;
+                    border: 1px solid {accent};
+                    border-radius: 6px;
+                    padding: 6px 16px;
+                }}
+                QPushButton:hover {{
+                    background-color: {theme.accent_rgba(0.25)};
+                    color: #FFFFFF;
+                }}
+            """)
+        else:
+            self.btn_apply.setEnabled(False)
+            self.btn_apply.setStyleSheet("""
+                QPushButton {
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: #555A6B;
+                    background-color: #16171E;
+                    border: 1px solid #242734;
+                    border-radius: 6px;
+                    padding: 6px 16px;
+                }
+            """)
+
+    def _connect_dirty_listeners(self):
+        """Conecta eventos de cambio en todos los controles a _mark_dirty."""
+        for child in self.findChildren(QSpinBox):
+            child.valueChanged.connect(self._mark_dirty)
+        for child in self.findChildren(QComboBox):
+            if child is not self.cb_theme_skin:
+                child.currentIndexChanged.connect(self._mark_dirty)
+        for child in self.findChildren(QCheckBox):
+            child.toggled.connect(self._mark_dirty)
+        for child in self.findChildren(QLineEdit):
+            child.textChanged.connect(self._mark_dirty)
+
+    def _on_apply_clicked(self):
+        """Aplica los cambios sin cerrar y consolida el nuevo tema en disco."""
+        self._save_settings()
+        self._original_theme_name = getattr(self.settings_manager.settings, "theme_name", "obsidian")
+        self._original_accent = self.settings_manager.settings.accent_color
+        self._has_pending_changes = False
+        self._update_apply_button_state()
+        parent = self.parent()
+        if parent and hasattr(parent, "show_toast"):
+            parent.show_toast("Ajustes aplicados correctamente", "success")
 
     def _rebuild_pills_bar(self, active_key: str | None = None):
         if hasattr(self, "pills_bar"):
@@ -201,6 +422,7 @@ class SettingsDialog(QDialog):
                 lambda pos, k=key, b=btn: self._show_tab_context_menu(b.mapToGlobal(pos), k)
             )
 
+            self._apply_pill_style(btn)
             self._tab_group.addButton(btn)
             self._tab_buttons.append(btn)
             self._buttons_by_key[key] = btn
@@ -209,11 +431,41 @@ class SettingsDialog(QDialog):
             page_widget = self._pages_by_key[key]
             stack_idx = self._settings_stack.indexOf(page_widget)
             btn.toggled.connect(
-                lambda on, i=stack_idx, b=btn: self._on_settings_tab_toggled(on, i, b)
+                lambda on, i=stack_idx: on and self._settings_stack.setCurrentIndex(i)
             )
 
         target_key = active_key if (active_key and active_key in self._buttons_by_key) else self._tab_order[0]
         self._buttons_by_key[target_key].setChecked(True)
+
+    def _apply_pill_style(self, button: QPushButton):
+        accent = theme.accent()
+        accent_bg = theme.accent_rgba(0.18)
+        button.setStyleSheet(f"""
+            QPushButton {{
+                font-size: 11px;
+                font-weight: 700;
+                color: #9297A5;
+                background-color: #1A1C23;
+                border: 1px solid #282C38;
+                border-radius: 6px;
+                padding: 5px 12px;
+            }}
+            QPushButton:hover {{
+                color: #FFFFFF;
+                background-color: #222530;
+                border-color: #3B4052;
+            }}
+            QPushButton:checked {{
+                color: #FFFFFF;
+                background-color: {accent_bg};
+                border: 1px solid {accent};
+            }}
+            QPushButton:checked:hover {{
+                color: #FFFFFF;
+                background-color: {accent_bg};
+                border: 1px solid {accent};
+            }}
+        """)
 
     def _show_tab_context_menu(self, global_pos: QPoint, key: str):
         menu = QMenu(self)
@@ -252,45 +504,9 @@ class SettingsDialog(QDialog):
         self.settings_manager.save()
         self._rebuild_pills_bar(active_key=self._tab_order[0])
 
-    def _on_settings_tab_toggled(self, on: bool, index: int, button: QPushButton):
-        self._apply_tab_button_style(button, selected=on)
-        if on:
-            self._settings_stack.setCurrentIndex(index)
-
-    def _apply_tab_button_style(self, button: QPushButton, selected: bool):
-        accent = theme.accent()
-        if selected:
-            button.setStyleSheet(f"""
-                QPushButton {{
-                    font-size: 11px;
-                    font-weight: 800;
-                    color: {accent};
-                    background-color: {theme.accent_rgba(0.14)};
-                    border: 1px solid {accent};
-                    border-radius: 6px;
-                    padding: 6px 12px;
-                }}
-            """)
-        else:
-            button.setStyleSheet("""
-                QPushButton {
-                    font-size: 11px;
-                    font-weight: 700;
-                    color: #9297A5;
-                    background-color: #1C1E24;
-                    border: 1px solid #2B2E38;
-                    border-radius: 6px;
-                    padding: 6px 12px;
-                }
-                QPushButton:hover {
-                    color: #FFFFFF;
-                    background-color: #242730;
-                    border-color: #3D4250;
-                }
-            """)
-
     def _set_accent_hex(self, hex_color: str):
         color = QColor(hex_color)
+        old_hex = getattr(self, "_accent_hex", "")
         self._accent_hex = color.name().lower() if color.isValid() else theme.accent()
         self.btn_accent_swatch.setStyleSheet(
             f"background-color: {self._accent_hex}; border: 1px solid #666666; border-radius: 4px;"
@@ -301,6 +517,12 @@ class SettingsDialog(QDialog):
             btn.blockSignals(False)
         self._update_hex_field()
         self._update_rgb_field()
+
+        # Actualizar visualmente la ventana con el nuevo acento
+        self._apply_dialog_theme()
+
+        if old_hex and old_hex.lower() != self._accent_hex.lower():
+            self._mark_dirty()
 
     def _update_hex_field(self):
         self.edit_hex.blockSignals(True)
@@ -343,6 +565,17 @@ class SettingsDialog(QDialog):
 
     def _load_settings(self):
         s = self.settings_manager.settings
+
+        # Cargar tema activo en el combo
+        current_theme_id = getattr(s, "theme_name", "obsidian")
+        for i in range(self.cb_theme_skin.count()):
+            if self.cb_theme_skin.itemData(i) == current_theme_id:
+                self.cb_theme_skin.setCurrentIndex(i)
+                break
+        themes_reg = theme.get_theme_manager().get_registered_themes()
+        if current_theme_id in themes_reg:
+            self.lbl_theme_desc.setText(themes_reg[current_theme_id][1])
+
         for i in range(self.cb_shuffle_mode.count()):
             if self.cb_shuffle_mode.itemData(i) == s.shuffle_mode:
                 self.cb_shuffle_mode.setCurrentIndex(i)
@@ -351,6 +584,19 @@ class SettingsDialog(QDialog):
         self.spin_candidates.setValue(s.diversity_candidates)
         self.spin_history_size.setValue(s.history_size)
         self.spin_avoid_maps.setValue(s.avoid_recent_maps)
+
+        curr_policy = getattr(s, "rotation_policy", "continuous")
+        if hasattr(self, "cb_rotation_policy"):
+            for i in range(self.cb_rotation_policy.count()):
+                if self.cb_rotation_policy.itemData(i) == curr_policy:
+                    self.cb_rotation_policy.setCurrentIndex(i)
+                    break
+        if hasattr(self, "spin_rotation_batch"):
+            self.spin_rotation_batch.setValue(getattr(s, "rotation_batch_size", 2))
+        if hasattr(self, "spin_min_shield"):
+            self.spin_min_shield.setValue(getattr(s, "min_matches_shield", 2))
+        if hasattr(self, "spin_streamer_rest"):
+            self.spin_streamer_rest.setValue(getattr(s, "streamer_rest_interval", 0))
         if hasattr(self, "chk_auto_map"):
             self.chk_auto_map.setChecked(getattr(s, "auto_map", True))
 
@@ -414,8 +660,6 @@ class SettingsDialog(QDialog):
                     self.cb_role_badge_style.setCurrentIndex(i)
                     break
 
-                    break
-
         b_outlines = getattr(s, "slot_badge_outlines", False)
         if hasattr(self, "cb_badge_outlines"):
             for i in range(self.cb_badge_outlines.count()):
@@ -441,6 +685,10 @@ class SettingsDialog(QDialog):
         self.spin_tier_map_font.setValue(getattr(s, "tier_map_font_size", 14))
         self.spin_tier_player_w.setValue(getattr(s, "tier_player_width", 125))
         self.spin_tier_player_h.setValue(getattr(s, "tier_player_height", 75))
+        if hasattr(self, "chk_tier_watermark_export"):
+            self.chk_tier_watermark_export.setChecked(getattr(s, "tier_show_watermark_export", True))
+        if hasattr(self, "chk_tier_watermark_ui"):
+            self.chk_tier_watermark_ui.setChecked(getattr(s, "tier_show_watermark_ui", True))
 
     def _clear_shuffle_history(self):
         reply = QMessageBox.question(
@@ -721,12 +969,47 @@ class SettingsDialog(QDialog):
             self._refresh_custom_content_lists()
             self.accept()
 
+    def _confirm_reset_defaults(self):
+        reply = QMessageBox.question(
+            self,
+            "Restablecer Ajustes",
+            "¿Deseas restablecer todos los parámetros de configuración a sus valores predeterminados de fábrica?\n\n"
+            "(Tus jugadores, héroes y mapas guardados se mantendrán intactos).",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply == QMessageBox.Yes:
+            self.settings_manager.reset_to_defaults()
+            self._load_settings()
+            self._mark_dirty()
+            parent = self.parent()
+            if parent and hasattr(parent, "show_toast"):
+                parent.show_toast("Ajustes del sistema restablecidos a valores por defecto", "info")
+
     def _save_settings(self):
         s = self.settings_manager.settings
+
+        # Persistir tema seleccionado (fijado a obsidian para release estable)
+        new_theme_id = "obsidian"
+        s.theme_name = "obsidian" 
+        accent_changed = s.accent_color.lower() != self._accent_hex.lower()
+        s.accent_color = self._accent_hex
+
+        theme.set_theme(new_theme_id, s.accent_color)
+
         s.shuffle_mode = self.cb_shuffle_mode.currentData()
         s.diversity_candidates = self.spin_candidates.value()
         s.history_size = self.spin_history_size.value()
         s.avoid_recent_maps = self.spin_avoid_maps.value()
+
+        if hasattr(self, "cb_rotation_policy"):
+            s.rotation_policy = self.cb_rotation_policy.currentData()
+        if hasattr(self, "spin_rotation_batch"):
+            s.rotation_batch_size = self.spin_rotation_batch.value()
+        if hasattr(self, "spin_min_shield"):
+            s.min_matches_shield = self.spin_min_shield.value()
+        if hasattr(self, "spin_streamer_rest"):
+            s.streamer_rest_interval = self.spin_streamer_rest.value()
         if hasattr(self, "chk_auto_map"):
             s.auto_map = self.chk_auto_map.isChecked()
 
@@ -777,11 +1060,12 @@ class SettingsDialog(QDialog):
         s.tier_map_font_size = self.spin_tier_map_font.value()
         s.tier_player_width = self.spin_tier_player_w.value()
         s.tier_player_height = self.spin_tier_player_h.value()
+        if hasattr(self, "chk_tier_watermark_export"):
+            s.tier_show_watermark_export = self.chk_tier_watermark_export.isChecked()
+        if hasattr(self, "chk_tier_watermark_ui"):
+            s.tier_show_watermark_ui = self.chk_tier_watermark_ui.isChecked()
 
-        accent_changed = s.accent_color.lower() != self._accent_hex.lower()
-        s.accent_color = self._accent_hex
         self.settings_manager.save()
-
         self.shuffle_history.set_max_size(s.history_size)
 
         parent_window = self.parent()
@@ -790,21 +1074,36 @@ class SettingsDialog(QDialog):
             parent_window.roles_toggle.setChecked(s.show_roles)
             parent_window._apply_role_policy()
             parent_window._adapt_pinned_roles_to_mode()
-            
+
             parent_window.match_display.team1_widget.name_input.setText(s.team1_name)
             parent_window.match_display.team2_widget.name_input.setText(s.team2_name)
             parent_window._apply_settings_to_widgets()
             parent_window._after_roster_change()
             if hasattr(parent_window, "tier_maker"):
+                parent_window.tier_maker.apply_theme()
                 parent_window.tier_maker.reload_bank()
-            if accent_changed:
-                theme.set_accent(s.accent_color)
-                parent_window._apply_theme()
+            parent_window._apply_theme()
+
+    def closeEvent(self, event):
+        self.save_persistent_geometry()
+        # Si se cierra con la X y había cambios no guardados en tema, revertir armónicamente
+        if self._has_pending_changes:
+            theme.set_theme(self._original_theme_name, self._original_accent)
+            parent = self.parent()
+            if parent and hasattr(parent, "_apply_theme"):
+                parent._apply_theme()
+        super().closeEvent(event)
 
     def accept(self):
+        self.save_persistent_geometry()
         self._save_settings()
         super().accept()
 
     def reject(self):
-        self._save_settings()
+        self.save_persistent_geometry()
+        # Revertir armónicamente al tema guardado original si se cancela
+        theme.set_theme(self._original_theme_name, self._original_accent)
+        parent = self.parent()
+        if parent and hasattr(parent, "_apply_theme"):
+            parent._apply_theme()
         super().reject()

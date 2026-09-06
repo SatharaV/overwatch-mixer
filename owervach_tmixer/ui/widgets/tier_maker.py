@@ -24,9 +24,52 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from PySide6.QtCore import QEvent, QObject, QSize, QRect
+from PySide6.QtWidgets import QRubberBand
 from owervach_tmixer.core.models import Player
 from owervach_tmixer.core.special_player import is_special_player_name
 from owervach_tmixer.ui.styles import theme
+
+
+class BankRubberBandFilter(QObject):
+    """Native Qt EventFilter for Windows Desktop Rubber Band selection in Tier Maker bank."""
+
+    def __init__(self, tier_maker: TierMakerWidget):
+        super().__init__(tier_maker.bank_drop_zone)
+        self.tm = tier_maker
+        self._rubber_band: Optional[QRubberBand] = None
+        self._origin = QPoint()
+
+    def eventFilter(self, watched, event):
+        if event.type() == QEvent.MouseButtonPress and event.button() == Qt.LeftButton:
+            mods = QApplication.keyboardModifiers()
+            if not (mods & (Qt.ControlModifier | Qt.ShiftModifier)):
+                self.tm.clear_selection()
+            self._origin = event.pos()
+            if self._rubber_band is None:
+                self._rubber_band = QRubberBand(QRubberBand.Rectangle, self.tm.bank_drop_zone)
+            self._rubber_band.setGeometry(QRect(self._origin, QSize()))
+            self._rubber_band.show()
+            return True
+
+        elif event.type() == QEvent.MouseMove and self._rubber_band and self._rubber_band.isVisible():
+            rect = QRect(self._origin, event.pos()).normalized()
+            self._rubber_band.setGeometry(rect)
+            mods = QApplication.keyboardModifiers()
+            for card in self.tm.bank_cards:
+                if rect.intersects(card.geometry()):
+                    self.tm.selected_cards.add(card)
+                    card.set_selected(True)
+                elif mods == Qt.NoModifier:
+                    self.tm.selected_cards.discard(card)
+                    card.set_selected(False)
+            return True
+
+        elif event.type() == QEvent.MouseButtonRelease and self._rubber_band and self._rubber_band.isVisible():
+            self._rubber_band.hide()
+            return True
+
+        return super().eventFilter(watched, event)
 
 # Submódulos desacoplados
 from .tier.tier_card import (
@@ -59,13 +102,18 @@ DEFAULT_TIERS = [
 
 
 class TierMakerWidget(QWidget):
-    """Main Tier Maker tab orchestrator for Overwatch Team Mixer."""
+    """Main Tier Maker tab orchestrator with Windows Desktop Rubber Band & Multi-select."""
 
     def __init__(self, parent: Optional[MainWindow] = None):
         super().__init__(parent)
+        self.setObjectName("tierMakerTab")
         self._parent_window = parent
         self.rows: List[TierRowWidget] = []
         self.bank_cards: List[TierItemCard] = []
+        self.selected_cards: set[TierItemCard] = set()
+        self._last_selected_card: Optional[TierItemCard] = None
+        self._rubber_band = None
+        self._rubber_origin = QPoint()
         self._current_mode = "hero"
 
         self._setup_ui()
@@ -224,6 +272,9 @@ class TierMakerWidget(QWidget):
         self.bank_drop_zone = TierDropZone(self.bank_scroll)
         self.bank_drop_zone.item_dropped.connect(self._on_item_dropped_on_bank)
         self.bank_scroll.setWidget(self.bank_drop_zone)
+        # EventFilter nativo de C++ para selección elástica en el fondo
+        self._bank_filter = BankRubberBandFilter(self)
+        self.bank_drop_zone.installEventFilter(self._bank_filter)
         b_layout.addWidget(self.bank_scroll, 1)
 
         splitter.addWidget(bank_container)
@@ -232,8 +283,41 @@ class TierMakerWidget(QWidget):
         main_layout.addWidget(splitter, 1)
         self.apply_theme()
 
+    def clear_selection(self):
+        for c in list(self.selected_cards):
+            c.set_selected(False)
+        self.selected_cards.clear()
+        self._last_selected_card = None
+
+    def _handle_card_selection(self, card: TierItemCard, modifiers):
+        if modifiers & Qt.ControlModifier:
+            if card in self.selected_cards:
+                self.selected_cards.remove(card)
+                card.set_selected(False)
+            else:
+                self.selected_cards.add(card)
+                card.set_selected(True)
+                self._last_selected_card = card
+        elif modifiers & Qt.ShiftModifier and self._last_selected_card and self._last_selected_card in self.bank_cards:
+            i1 = self.bank_cards.index(self._last_selected_card)
+            i2 = self.bank_cards.index(card)
+            for c in self.bank_cards[min(i1, i2):max(i1, i2) + 1]:
+                self.selected_cards.add(c)
+                c.set_selected(True)
+        else:
+            self.clear_selection()
+            self.selected_cards.add(card)
+            card.set_selected(True)
+            self._last_selected_card = card
+
     def apply_theme(self):
         accent = theme.accent()
+        p_win = self._parent_window or self.window()
+        s = getattr(p_win, "settings_manager", None)
+        if s and hasattr(self, "canvas_widget"):
+            show_ui_wm = getattr(s.settings, "tier_show_watermark_ui", True)
+            self.canvas_widget.hide_watermark = not show_ui_wm
+            self.canvas_widget.update()
         for btn in getattr(self, "_cat_buttons", []):
             btn.setStyleSheet(f"""
                 QPushButton {{
@@ -500,6 +584,7 @@ class TierMakerWidget(QWidget):
             )
             card.card_clicked.connect(self._on_card_quick_action)
             card.dropped_on_card.connect(self._on_card_global_dropped)
+            card.selection_requested.connect(self._handle_card_selection)
             self._add_to_bank(card)
 
         self._update_bank_count()
@@ -558,6 +643,22 @@ class TierMakerWidget(QWidget):
             self._on_dropped_on_bank_card(target_card, data)
 
     def _on_item_placed_on_row(self, row: TierRowWidget, data: dict, pos: QPoint):
+        if data.get("is_multi") and data.get("names"):
+            cards_to_move = [self._find_card_by_name(n) for n in data["names"]]
+            cards_to_move = [c for c in cards_to_move if c]
+            target_idx = row.drop_zone.find_insert_index(pos)
+            for c in cards_to_move:
+                if c.current_row:
+                    c.current_row.remove_card(c)
+                else:
+                    self._remove_from_bank(c)
+                row.insert_card(target_idx, c)
+                target_idx += 1
+            self.clear_selection()
+            self._update_bank_count()
+            self._clear_all_drag_highlights()
+            return
+
         card = self._find_card_by_data(data)
         if not card:
             return
@@ -586,6 +687,22 @@ class TierMakerWidget(QWidget):
                 p_win._egg_manager.on_fav_hero_tier_placed(data.get("name", ""), row.tier_name, p_win)
 
     def _on_item_swapped_with_card(self, target_row: TierRowWidget, target_card: TierItemCard, data: dict):
+        if data.get("is_multi") and data.get("names"):
+            cards_to_move = [self._find_card_by_name(n) for n in data["names"]]
+            cards_to_move = [c for c in cards_to_move if c]
+            idx_dst = target_row.cards.index(target_card) if target_card in target_row.cards else len(target_row.cards)
+            for c in cards_to_move:
+                if c.current_row:
+                    c.current_row.remove_card(c)
+                else:
+                    self._remove_from_bank(c)
+                target_row.insert_card(idx_dst, c)
+                idx_dst += 1
+            self.clear_selection()
+            self._update_bank_count()
+            self._clear_all_drag_highlights()
+            return
+
         incoming_card = self._find_card_by_data(data)
         if not incoming_card or incoming_card is target_card:
             return
@@ -674,6 +791,20 @@ class TierMakerWidget(QWidget):
         self._clear_all_drag_highlights()
 
     def _on_item_dropped_on_bank(self, data: dict, pos: QPoint):
+        if data.get("is_multi") and data.get("names"):
+            cards_to_move = [self._find_card_by_name(n) for n in data["names"]]
+            cards_to_move = [c for c in cards_to_move if c]
+            for card in cards_to_move:
+                if card in self.bank_cards:
+                    continue
+                if card.current_row is not None:
+                    card.current_row.remove_card(card)
+                self._add_to_bank(card)
+            self.clear_selection()
+            self._update_bank_count()
+            self._clear_all_drag_highlights()
+            return
+
         card = self._find_card_by_data(data)
         if not card or card in self.bank_cards:
             return
@@ -682,6 +813,16 @@ class TierMakerWidget(QWidget):
         self._add_to_bank(card)
         self._update_bank_count()
         self._clear_all_drag_highlights()
+
+    def _find_card_by_name(self, name: str) -> Optional[TierItemCard]:
+        for row in self.rows:
+            for c in row.cards:
+                if c.item_name == name:
+                    return c
+        for c in self.bank_cards:
+            if c.item_name == name:
+                return c
+        return None
 
     def _find_card_by_data(self, data: dict) -> Optional[TierItemCard]:
         name = data.get("name")
@@ -752,7 +893,8 @@ class TierMakerWidget(QWidget):
         p_win = self._parent_window or self.window()
         s = getattr(p_win, "settings_manager", None)
         ratio = getattr(getattr(s, "settings", None), "tier_export_ratio", "16:9")
-        return render_clean_tierlist_pixmap(self.rows, self.canvas_widget, self._current_mode, export_ratio=ratio)
+        show_wm = getattr(getattr(s, "settings", None), "tier_show_watermark_export", True)
+        return render_clean_tierlist_pixmap(self.rows, self.canvas_widget, self._current_mode, export_ratio=ratio, show_watermark=show_wm)
 
     def _copy_tierlist_to_clipboard(self):
         pix = self.render_clean_tierlist_pixmap()

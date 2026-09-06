@@ -1,4 +1,4 @@
-"""Obsidian Esports Glassmorphic Toasts and Sentient AI Top-HUD Holographic Flyouts."""
+"""Obsidian Esports Glassmorphic Toasts and Athena Broadcast Flyouts."""
 
 from __future__ import annotations
 
@@ -29,87 +29,86 @@ from owervach_tmixer.ui.styles import theme
 
 
 class AITransmissionFlyout(QFrame):
-    """Futuristic holographic Top-HUD card for sentient AI personality transmissions."""
+    """Futuristic, highly readable Top-HUD broadcast card for Athena."""
 
     def __init__(self, message: str, parent: QWidget | None = None):
         super().__init__(parent)
-        self.setObjectName("aiFlyout")
+        self.setObjectName("athenaFlyout")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self._is_paused = False
 
-        self.setStyleSheet("""
-            QFrame#aiFlyout {
-                background-color: rgba(10, 14, 20, 0.96);
-                border: 1px solid rgba(97, 171, 2, 0.45);
-                border-top: 2.5px solid #61ab02;
-                border-radius: 12px;
-            }
+        accent = theme.accent()
+        self.setStyleSheet(f"""
+            QFrame#athenaFlyout {{
+                background-color: rgba(12, 14, 20, 0.98);
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                border-top: 3px solid {accent};
+                border-radius: 10px;
+            }}
         """)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 10, 18, 12)
-        layout.setSpacing(5)
+        layout.setContentsMargins(20, 12, 20, 14)
+        layout.setSpacing(6)
 
-        # Header Bar: Telemetry Status
+        # Header Bar: Athena Callout
         header = QHBoxLayout()
-        header.setSpacing(6)
+        header.setSpacing(8)
 
-        lbl_sys = QLabel("🤖  [ PROTOCOLO IA // SATHARA CORE ]", self)
-        lbl_sys.setStyleSheet("""
-            QLabel {
-                color: #61ab02;
-                font-size: 9.5px;
+        lbl_sys = QLabel("🎙️  ATHENA", self)
+        lbl_sys.setStyleSheet(f"""
+            QLabel {{
+                color: {accent};
+                font-size: 11px;
                 font-weight: 900;
-                letter-spacing: 1.2px;
+                letter-spacing: 1px;
                 background: transparent;
-            }
+            }}
         """)
         header.addWidget(lbl_sys)
         header.addStretch()
 
-        lbl_status = QLabel("🟢 EN LÍNEA", self)
+        lbl_status = QLabel("EN DIRECTO", self)
         lbl_status.setStyleSheet("""
-            QLabel {
+            QLabel {{
                 color: #A3F558;
-                font-size: 8.5px;
+                font-size: 9px;
                 font-weight: 800;
                 background-color: rgba(97, 171, 2, 0.16);
                 border: 1px solid rgba(97, 171, 2, 0.35);
                 border-radius: 3px;
-                padding: 1px 5px;
-            }
+                padding: 1px 6px;
+            }}
         """)
         header.addWidget(lbl_status)
         layout.addLayout(header)
 
-        # Clean AI message body
         clean_msg = message
-        for pfx in ("🤖 [Sistema]:", "[Sistema]:", "🤖", "✨", "👑"):
+        for pfx in ("🤖 [Sistema]:", "[Sistema]:", "🤖", "✨", "👑", "◈ [SATHARA CORE]:", "◈"):
             if clean_msg.startswith(pfx):
                 clean_msg = clean_msg[len(pfx):].strip()
 
         self.lbl_text = QLabel(clean_msg, self)
         self.lbl_text.setWordWrap(True)
         self.lbl_text.setStyleSheet("""
-            QLabel {
-                color: #F0FDF4;
-                font-size: 12.5px;
+            QLabel {{
+                color: #F4F6FB;
+                font-size: 14px;
                 font-weight: 700;
-                line-height: 1.4;
+                line-height: 1.45;
                 background: transparent;
                 letter-spacing: 0.2px;
-            }
+            }}
         """)
         layout.addWidget(self.lbl_text)
 
-        # Dimensiones de lectura
-        self.setFixedWidth(min(520, max(360, len(clean_msg) * 7 + 80)))
+        # Dimensiones cómodas para lectura sin esfuerzo
+        self.setFixedWidth(min(580, max(400, len(clean_msg) * 8 + 80)))
         self.adjustSize()
 
-        # Resplandor esmeralda inicial
         self.glow = QGraphicsDropShadowEffect(self)
-        self.glow.setColor(QColor("#61ab02"))
-        self.glow.setBlurRadius(28)
+        self.glow.setColor(QColor(accent))
+        self.glow.setBlurRadius(30)
         self.glow.setOffset(0, 0)
         self.setGraphicsEffect(self.glow)
 
@@ -123,7 +122,7 @@ class AITransmissionFlyout(QFrame):
 
 
 class Toast(QFrame):
-    """A sleek Glassmorphic standard toast pill for general operations."""
+    """Large, accessible glassmorphic toast for general operations."""
 
     def __init__(self, message: str, kind: str = "info", parent: QWidget | None = None):
         super().__init__(parent)
@@ -135,9 +134,10 @@ class Toast(QFrame):
         acc = theme.accent()
         themes = {
             "success": {"accent": "#00E599", "glow": "#00E599", "icon": "✅"},
-            "warning": {"accent": "#FFB020", "glow": "#FFB020", "icon": "⚠️"},
+            "warning": {"accent": "#FFAA00", "glow": "#FFAA00", "icon": "⚠️"},
             "danger": {"accent": "#FF4D6D", "glow": "#FF4D6D", "icon": "❌"},
             "error": {"accent": "#FF4D6D", "glow": "#FF4D6D", "icon": "❌"},
+            "special": {"accent": "#A4E062", "glow": "#61ab02", "icon": "⚜️"},
             "info": {"accent": acc if acc != "#61ab02" else "#00B4FF", "glow": "#00B4FF", "icon": "ℹ️"},
         }
 
@@ -147,23 +147,23 @@ class Toast(QFrame):
 
         self.setStyleSheet(f"""
             QFrame {{
-                background-color: rgba(14, 16, 22, 0.94);
-                border: 1px solid rgba(255, 255, 255, 0.08);
-                border-left: 3px solid {accent_color};
-                border-radius: 18px;
+                background-color: rgba(14, 16, 24, 0.96);
+                border: 1px solid rgba(255, 255, 255, 0.10);
+                border-left: 3.5px solid {accent_color};
+                border-radius: 9px;
             }}
         """)
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(14, 7, 18, 7)
-        layout.setSpacing(8)
+        layout.setContentsMargins(16, 9, 20, 9)
+        layout.setSpacing(10)
 
         self.lbl_icon = QLabel(theme_data["icon"])
-        self.lbl_icon.setStyleSheet("font-size: 12px; background: transparent; border: none;")
+        self.lbl_icon.setStyleSheet("font-size: 14px; background: transparent; border: none;")
         layout.addWidget(self.lbl_icon)
 
         clean_msg = message
-        for pfx in ("✅", "⚠️", "❌", "✨", "ℹ️", "⚖️", "⭐", "🗺️", "🎭", "📦", "🔄", "☢️", "📤", "🎲", "✏️", "🗑️"):
+        for pfx in ("✅", "⚠️", "❌", "✨", "ℹ️", "⚖️", "⭐", "🗺️", "🎭", "📦", "🔄", "☢️", "📤", "🎲", "✏️", "🗑️", "👑", "⚜️"):
             if clean_msg.startswith(pfx):
                 clean_msg = clean_msg[len(pfx):].strip()
                 break
@@ -172,7 +172,7 @@ class Toast(QFrame):
         self.lbl_text.setStyleSheet("""
             QLabel {
                 color: #FFFFFF;
-                font-size: 11.5px;
+                font-size: 13px;
                 font-weight: 700;
                 background: transparent;
                 border: none;
@@ -184,17 +184,16 @@ class Toast(QFrame):
 
         self.shadow = QGraphicsDropShadowEffect(self)
         self.shadow.setColor(QColor(glow_color))
-        self.shadow.setBlurRadius(16)
+        self.shadow.setBlurRadius(18)
         self.shadow.setOffset(0, 0)
         self.setGraphicsEffect(self.shadow)
 
 
-# Compatibility alias
 ToastItem = Toast
 
 
 class ToastManager(QObject):
-    """Orchestrates Bottom Toasts and Sentient AI Top-HUD Flyouts seamlessly."""
+    """Orchestrates Accessible Bottom Toasts and Athena Broadcasts."""
 
     MAX_ACTIVE_TOASTS = 2
 
@@ -214,12 +213,11 @@ class ToastManager(QObject):
             self._reposition_ai_flyout()
         return super().eventFilter(watched, event)
 
-    def show_toast(self, message: str, kind: str = "info", duration_ms: int = 2800):
+    def show_toast(self, message: str, kind: str = "info", duration_ms: int = 3400):
         if not self.window:
             return
 
-        # Notificación Top-HUD para mensajes especiales o con prefijo IA
-        if kind == "special" or message.startswith("🤖"):
+        if kind == "special" or message.startswith("🤖") or message.startswith("◈"):
             self.show_ai_flyout(message)
             return
 
@@ -227,6 +225,11 @@ class ToastManager(QObject):
         if message in self._last_messages and (now - self._last_messages[message]) < 1.6:
             return
         self._last_messages[message] = now
+
+        # Deduplicación: Si el mismo mensaje ya está visible, no apilar un duplicado idéntico
+        for active in list(self._active_toasts):
+            if active.message == message:
+                return
 
         while len(self._active_toasts) >= self.MAX_ACTIVE_TOASTS:
             oldest = self._active_toasts.pop(0)
@@ -241,7 +244,7 @@ class ToastManager(QObject):
         tw = toast.width()
         th = toast.height()
         target_x = (win_w - tw) // 2
-        target_y = win_h - 40 - th
+        target_y = win_h - 44 - th
 
         toast.move(target_x, target_y + 14)
         toast.show()
@@ -258,7 +261,6 @@ class ToastManager(QObject):
         QTimer.singleShot(duration_ms, lambda: self._dismiss_toast(toast))
 
     def show_ai_flyout(self, message: str, custom_duration_ms: int | None = None):
-        """Displays the prominent sentient AI transmission at the Top-Center."""
         if not self.window:
             return
 
@@ -289,7 +291,7 @@ class ToastManager(QObject):
         anim_pos.setEasingCurve(QEasingCurve.Type.OutBack)
         anim_pos.start()
 
-        calc_duration = max(4600, min(6500, len(message) * 70))
+        calc_duration = max(5500, min(8000, len(message) * 80))
         duration = custom_duration_ms or calc_duration
 
         self._schedule_ai_dismiss(flyout, duration)
@@ -354,7 +356,7 @@ class ToastManager(QObject):
         if not self.window:
             return
 
-        margin_bottom = 40
+        margin_bottom = 44
         spacing = 8
         win_w = self.window.width()
         win_h = self.window.height()

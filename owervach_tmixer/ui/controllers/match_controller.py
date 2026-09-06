@@ -98,6 +98,20 @@ class MatchController:
         roster = self.win.roster_controller.roster
         needed = settings.game_mode.total_players
 
+        # Smart Queue & VIP Streamer Continuous Rotation
+        if getattr(settings, "bench_rotation_enabled", False) and roster.bench:
+            winner_team = self.win._current_match.winner if self.win._current_match else None
+            p_in, p_out = roster.rotate_bench_and_teams(
+                streamer_rest_interval=getattr(settings, "streamer_rest_interval", 0),
+                policy=getattr(settings, "rotation_policy", "continuous"),
+                batch_size=getattr(settings, "rotation_batch_size", 2),
+                min_shield=getattr(settings, "min_matches_shield", 2),
+                winner_team=winner_team,
+            )
+            if p_in > 0:
+                self.win.roster_controller.after_roster_change()
+                self.win.show_toast(f"🔄 Rotación ({p_in} entran, {p_out} a espera)", "info")
+
         active = roster.active_players()
         if len(active) < needed and roster.bench:
             filled_count = 0
@@ -183,6 +197,9 @@ class MatchController:
             self.win.map_widget.select_map(chosen_map)
             settings.last_selected_map = chosen_map.to_dict()
             self.win.settings_manager.save()
+            # Locución táctica de Athena sobre el mapa sorteado
+            if hasattr(self.win, "_egg_manager"):
+                self.win._egg_manager.on_map_rolled(chosen_map.name, self.win)
 
         # Renderizado atómico en un solo frame (bloquea micro-parpadeos de slots)
         self.win.match_display.setUpdatesEnabled(False)
@@ -579,6 +596,18 @@ class MatchController:
             self.win.show_toast("⚖️ Modo Tryhard ACTIVADO: Balance por MMR y Rol", "info")
         else:
             self.win.show_toast("🎲 Modo Casual ACTIVADO: Mezcla libre", "info")
+
+    def on_rotation_toggled(self, checked: bool):
+        self.win.settings_manager.settings.bench_rotation_enabled = checked
+        self.win.settings_manager.save()
+        if hasattr(self.win, "rotation_toggle"):
+            self.win._update_pill_style(self.win.rotation_toggle, "#FFAA00")
+        # Sincronización visual instantánea de fichas en la Zona de Espera
+        self.win.roster_controller.refresh_roster_ui()
+        if checked:
+            self.win.show_toast("🔄 Rotación de Banca ACTIVADA: Espera rotará al mezclar", "info")
+        else:
+            self.win.show_toast("🛑 Rotación de Banca DESACTIVADA: Partida aislada", "info")
 
     def on_team_name_changed(self, team_num: int, name: str):
         s = self.win.settings_manager.settings

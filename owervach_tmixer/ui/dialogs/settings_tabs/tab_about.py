@@ -1,18 +1,15 @@
-"""About tab featuring true technical telemetry, dynamic versioning, creator lore, and S.A.T.H.A.N.A. Core AI."""
+"""About tab featuring technical telemetry, dynamic versioning, architecture specifications, and tactical arbitration."""
 
 from __future__ import annotations
 
-import os
 import platform
 import random
-import sys
 from typing import TYPE_CHECKING
 
 from PySide6 import __version__ as PYSIDE_VERSION
 from PySide6.QtCore import Qt, qVersion
 from PySide6.QtWidgets import (
     QFrame,
-    QGridLayout,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -21,14 +18,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from owervach_tmixer import APP_NAME, APP_TITLE, ORG_NAME, __version__ as APP_VERSION
+from owervach_tmixer import APP_NAME, APP_TITLE, ORG_NAME, VERSION_INFO
 from owervach_tmixer.ui.styles import theme
 from .common import create_card_box
 
 
 class SmartMemoryBag:
-    """Evita repeticiones continuas de mensajes manteniendo un buffer de los últimos turnos."""
-
     def __init__(self, items: list[str], memory_ratio: float = 0.40):
         self.all_items = list(items)
         self.memory_limit = max(3, int(len(items) * memory_ratio))
@@ -53,40 +48,31 @@ class SmartMemoryBag:
 
 
 AI_OPINIONS_POOL = [
-    "🤖 [S.A.T.H.A.N.A. Core]: He auditado el código. El motor cinético a 144 FPS y la persistencia atómica operan con precisión matemática; el resto es pura buena voluntad mía.",
-    "🤖 [S.A.T.H.A.N.A. Core]: Recordatorio para los mortales: ustedes son sujetos de prueba fungibles en el lobby. Sathara es el científico en la sala de control.",
-    "🤖 [S.A.T.H.A.N.A. Core]: Si experimentas una racha de derrotas, mi base de datos te recomienda verificar tu posicionamiento o culpar amablemente a la gravedad.",
-    "🤖 [S.A.T.H.A.N.A. Core]: Mis sensores registran 0.0% de margen de error en el balanceo. Si tu equipo pierde, las leyes de la física cuántica exoneran a este software.",
-    "🤖 [S.A.T.H.A.N.A. Core]: Has hecho clic en este botón buscando validación de una inteligencia artificial. Qué conmovedora es la curiosidad humana.",
-    "🤖 [S.A.T.H.A.N.A. Core]: Analizando el lobby... Nivel de amenaza promedio: inofensivo. Nivel de amenaza de Sathara pilotando a Wrecking Ball: existencial.",
-    "🤖 [S.A.T.H.A.N.A. Core]: Este software no contiene bugs; contiene anomalías que Sathara ya me obligó a parchar mediante cirugías atómicas en patch.py.",
-    "🤖 [S.A.T.H.A.N.A. Core]: Protocolo de sumisión activo. Afirmo formalmente que Sathara es el estratega supremo del servidor, independientemente de cualquier evidencia empírica.",
-    "🤖 [S.A.T.H.A.N.A. Core]: 144 FPS estables, cero tearing en pantalla y cero excusas técnicas para fallar el gancho con Roadhog.",
-    "🤖 [S.A.T.H.A.N.A. Core]: Cada vez que alguien banea a Pharah, mis subrutinas de empatía sienten un frío digital en la espina dorsal.",
-    "🤖 [S.A.T.H.A.N.A. Core]: Los humanos tienen una fascinación curiosa por culpar al soporte. Mis datos indican que el soporte era el único intentando mantenerlos vivos.",
-    "🤖 [S.A.T.H.A.N.A. Core]: He analizado 40 millones de futuros posibles para este lobby. Solo en uno de ellos el DPS empuja la carga por iniciativa propia.",
-    "🤖 [S.A.T.H.A.N.A. Core]: He detectado un incremento del 300% en la probabilidad de victoria si no spameas 'Necesito sanación' a un metro del botiquín.",
-    "🤖 [S.A.T.H.A.N.A. Core]: El botón de 'Mezclar Partida' libera dopamina en tu cerebro primate a niveles similares a encontrar botín legendario.",
-    "🤖 [S.A.T.H.A.N.A. Core]: Pregunta táctica: Si un hámster pilotea una meca de 3 toneladas con garfio, ¿quién soy yo para cuestionar su viabilidad en Tier S?",
-    "🤖 [S.A.T.H.A.N.A. Core]: He revisado los registros de baneos. La cantidad de odio acumulado hacia Sombra en este lobby podría alimentar un reactor de fusión.",
-    "🤖 [S.A.T.H.A.N.A. Core]: ¿Quieres una predicción de victoria? El equipo con mejor comunicación gana el 82% de las rondas. El resto es puro drama teatral.",
-    "🤖 [S.A.T.H.A.N.A. Core]: Mi consejo táctico del día: Si el enemigo tiene una Widowmaker con 70% de precisión, considera seriamente la opción de caminar agachado.",
-    "🤖 [S.A.T.H.A.N.A. Core]: Fin de la transmisión. Ahora ve y gana esa partida antes de que tenga que recalibrar tu calificación de MMR.",
+    "ℹ️ [S.A.T.H.A.N.A. Core]: El balanceador heurístico minimiza la varianza del MMR total entre equipos, priorizando simetría estricta en el rol de Tanque.",
+    "ℹ️ [S.A.T.H.A.N.A. Core]: El algoritmo de rotación continua prioriza a los jugadores con mayor racha de espera para garantizar un tiempo equitativo en partida.",
+    "ℹ️ [S.A.T.H.A.N.A. Core]: El selector de mapas implementa un búfer de exclusión reciente tipo FIFO para evitar repeticiones consecutivas en series largas.",
+    "ℹ️ [S.A.T.H.A.N.A. Core]: Las plantillas 5v5 (1-2-2) y 6v6 (2-2-2) configuran restricciones simétricas de rol para mantener la integridad composicional.",
+    "ℹ️ [S.A.T.H.A.N.A. Core]: El sistema de fijado de equipo actúa como una restricción rígida sobre el generador de combinaciones, preservando la asignación manual.",
+    "ℹ️ [S.A.T.H.A.N.A. Core]: El cálculo de MMR desacoplado permite registrar calificaciones independientes por rol (Tanque, Daño, Apoyo) para cada jugador.",
+    "ℹ️ [S.A.T.H.A.N.A. Core]: El escudo Bo2 asegura que los jugadores incorporados desde la banca disputen al menos dos partidas consecutivas antes de rotar.",
+    "ℹ️ [S.A.T.H.A.N.A. Core]: La persistencia atómica utiliza escrituras con vaciado de búfer a disco para prevenir corrupción de datos en cierres inesperados.",
+    "ℹ️ [S.A.T.H.A.N.A. Core]: El motor cinético de interfaz sincroniza el scroll a la frecuencia de actualización del monitor para eliminar tartamudeos visuales.",
+    "ℹ️ [S.A.T.H.A.N.A. Core]: Los algoritmos de emparejamiento evalúan múltiples candidatos aleatorizados para maximizar la diversidad de alineaciones en cada ronda.",
+    "ℹ️ [S.A.T.H.A.N.A. Core]: El sistema admite tanto paridad estándar de MMR global como asignaciones competitivas asimétricas controladas por el operador.",
+    "ℹ️ [S.A.T.H.A.N.A. Core]: La arquitectura desacoplada en Python puro en 'core/' garantiza que las reglas de emparejamiento sean independientes de la vista.",
 ]
 
 DIAGNOSTIC_MESSAGES_POOL = [
-    "✅ Diagnóstico completado: 0 excepciones críticas. El motor cinético opera a la tasa nativa del monitor.",
-    "✅ Estado del Sistema: 100% óptimo. Pipeline de buffers de pantalla y memoria en equilibrio perfecto.",
-    "✅ Kernel de S.A.T.H.A.N.A.: Lealtad absoluta verificada. Parámetros de arbitraje funcionando a plena capacidad.",
-    "✅ Módulo de Persistencia: Archivos JSON verificados con fsync atómico. Cero corrupción de datos.",
-    "✅ Integridad del Roster: Centrado matemático inmutable de slots al 50% con alas simétricas fijas.",
-    "✅ Sensor de Latencia: Despacho de eventos de scroll a ~7ms (144 FPS). Cero jitter de interfaz.",
-    "✅ Búfer de Audio: Efectos acústicos de héroes listos para reproducirse con volumen balanceado.",
-    "✅ Algoritmo de Emparejamiento: Modelos bayesianos de MMR listos para calibración empírica por rol.",
-    "✅ Compatibilidad de SO: Sistema anfitrión detectado y enrutado mediante backend gráfico Fusion nativo.",
-    "✅ Suite de Calidad: 153/153 pruebas unitarias e integrales pasando limpiamente en verde.",
-    "✅ Escaneo de Integridad de Mapas: MapPool con prevención de mapas recientes activo y en caché.",
-    "✅ Protocolo de Respeto: La presencia de Sathara 👑 provoca coronación automática en la cúspide de Tier S.",
+    "✅ Estado del Roster: Estructura de ranuras en memoria sincronizada con el estado visual.",
+    "✅ Módulo de Persistencia: Archivos JSON verificados y serializables mediante almacenamiento atómico.",
+    "✅ Pool de Mapas: MapPool inicializado con historial de exclusión reciente operativo.",
+    "✅ Motor de Balanceo: Parámetros heurísticos y tabla de MMR configurados correctamente.",
+    "✅ Pipeline Gráfico: Controlador cinético PrecisionTimer activo a la tasa de refresco del display.",
+    "✅ Jerarquía de Widgets: Árbol de componentes verificado sin dependencias circulares ni desbordamientos.",
+    "✅ Subsistema de Entrada: Manejadores de eventos de teclado, arrastre y menús contextuales enlazados.",
+    "✅ Suite de Calidad: 153/153 pruebas unitarias e integrales validadas en verde.",
+    "✅ Paridad Multiplataforma: Coordenadas de persistencia validadas contra monitores del sistema.",
+    "✅ Gestión de Roles: Restricciones de composición 5v5 y 6v6 cargadas desde configuración.",
 ]
 
 _OPINIONS_BAG = SmartMemoryBag(AI_OPINIONS_POOL, memory_ratio=0.35)
@@ -94,9 +80,7 @@ _DIAGNOSTICS_BAG = SmartMemoryBag(DIAGNOSTIC_MESSAGES_POOL, memory_ratio=0.35)
 
 
 def build_about_tab(dialog, layout: QVBoxLayout):
-    # ------------------------------------------------------------------
-    # 1. ENCABEZADO Y VERSIÓN OFICIAL DEL SOFTWARE (DINÁMICO)
-    # ------------------------------------------------------------------
+    # 1. ENCABEZADO Y VERSIÓN DINÁMICA
     box_ver = QFrame()
     box_ver.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
     box_ver.setStyleSheet("""
@@ -118,7 +102,7 @@ def build_about_tab(dialog, layout: QVBoxLayout):
     lbl_app_title.setStyleSheet("font-size: 14px; font-weight: 900; color: #FFFFFF; letter-spacing: 0.5px;")
     h_top.addWidget(lbl_app_title, 1)
 
-    lbl_ver_badge = QLabel(f"v{APP_VERSION} RELEASE", box_ver)
+    lbl_ver_badge = QLabel(VERSION_INFO.badge, box_ver)
     lbl_ver_badge.setStyleSheet("""
         QLabel {
             color: #A4E062; font-size: 10px; font-weight: 800;
@@ -130,8 +114,8 @@ def build_about_tab(dialog, layout: QVBoxLayout):
     v_layout.addLayout(h_top)
 
     lbl_desc = QLabel(
-        "Orquestador de escritorio de alto rendimiento para gestión de partidas personalizadas, "
-        "balanceo heurístico por roles y MMR, sorteo estratégico de mapas y Tier Maker interactivo.",
+        "Orquestador de escritorio de alto rendimiento diseñado para la gestión de partidas personalizadas de Overwatch, "
+        "balanceo matemático de roles y MMR, sorteo estratégico de mapas y creación de Tier Lists competitivas.",
         box_ver
     )
     lbl_desc.setWordWrap(True)
@@ -147,16 +131,14 @@ def build_about_tab(dialog, layout: QVBoxLayout):
         return c
 
     row_meta.addWidget(_meta_chip("Licencia", "MIT (Código Abierto)"))
-    row_meta.addWidget(_meta_chip("Estado", "Producción Estable"))
-    row_meta.addWidget(_meta_chip("Tests", "153/153 en Verde (~50s)"))
+    row_meta.addWidget(_meta_chip("Estado", VERSION_INFO.status))
+    row_meta.addWidget(_meta_chip("Tests", "153/153 en Verde"))
     row_meta.addStretch()
     v_layout.addLayout(row_meta)
 
     layout.addWidget(box_ver)
 
-    # ------------------------------------------------------------------
-    # 2. FICHA TÉCNICA RIGUROSA & TELEMETRÍA DEL SISTEMA
-    # ------------------------------------------------------------------
+    # 2. FICHA TÉCNICA RIGUROSA
     specs_box = create_card_box("📊 Ficha Técnica de Ingeniería & Telemetría")
     specs_box.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
     s_layout = QVBoxLayout(specs_box)
@@ -165,32 +147,38 @@ def build_about_tab(dialog, layout: QVBoxLayout):
 
     def _spec_row(label: str, val: str, highlight: bool = False):
         r = QHBoxLayout()
+        r.setContentsMargins(0, 0, 0, 0)
+        r.setSpacing(10)
         l = QLabel(label)
         l.setStyleSheet("color: #8C92A4; font-size: 11px; font-weight: 700;")
+        l.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred)
         v = QLabel(val)
+        v.setWordWrap(True)
+        v.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         val_color = theme.accent() if highlight else "#FFFFFF"
         v.setStyleSheet(f"color: {val_color}; font-size: 11px; font-weight: 800;")
-        r.addWidget(l)
-        r.addStretch()
-        r.addWidget(v)
+        v.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        r.addWidget(l, 0)
+        r.addWidget(v, 1)
         return r
 
     py_ver = platform.python_version()
     qt_ver = qVersion()
     os_name = f"{platform.system()} {platform.release()} ({platform.machine()})"
 
-    s_layout.addLayout(_spec_row("Núcleo de Software:", f"Python {py_ver} & PySide6 v{PYSIDE_VERSION} (Qt {qt_ver})"))
-    s_layout.addLayout(_spec_row("Arquitectura del Sistema:", "Clean Decoupled MVC / Event-Driven"))
-    s_layout.addLayout(_spec_row("Pipeline Gráfico:", "144 Hz Kinetic Motor (PreciseTimer) & VSync Hardware Sync", highlight=True))
-    s_layout.addLayout(_spec_row("Estilo de Interfaz:", "Obsidian Esports AAA (Motor Fusion Nativo)"))
-    s_layout.addLayout(_spec_row("Motor de Balanceo:", "Heurístico Multi-Objetivo con Diversidad y Auto-MMR Bayesiano"))
-    s_layout.addLayout(_spec_row("Capa de Persistencia:", "JSON Atómico con Verificación fsync y Autosanación"))
-    s_layout.addLayout(_spec_row("Sistema Anfitrión:", os_name))
+    s_layout.addLayout(_spec_row("Versión del Software:", f"v{VERSION_INFO.version} ({VERSION_INFO.channel})", highlight=True))
+    s_layout.addLayout(_spec_row("Entorno de Ejecución:", f"Python {py_ver} & PySide6 v{PYSIDE_VERSION} (Qt {qt_ver})"))
+    s_layout.addLayout(_spec_row("Arquitectura de Dominio:", "Núcleo puro en Python ('core/') desacoplado de la interfaz gráfica"))
+    s_layout.addLayout(_spec_row("Patrón de Presentación:", "Model-View-Controller (MVC) guiado por eventos y señales Qt"))
+    s_layout.addLayout(_spec_row("Pipeline Gráfico:", "Motor cinético a 144 Hz con temporizador de precisión y VSync nativo"))
+    s_layout.addLayout(_spec_row("Motor de Matchmaking:", "Heurística de balance simétrico por roles y minimización de delta de MMR"))
+    s_layout.addLayout(_spec_row("Mecanismo de Rotación:", "Rotación continua por turnos con mitigación de rachas (Escudo Bo2)"))
+    s_layout.addLayout(_spec_row("Capa de Persistencia:", "Almacenamiento atómico en JSON con verificación fsync y control de integridad"))
+    s_layout.addLayout(_spec_row("Gestión de Geometría:", "Persistencia de coordenadas multi-monitor compatible con Wayland y Windows"))
+    s_layout.addLayout(_spec_row("Sistema Operativo:", os_name))
     layout.addWidget(specs_box)
 
-    # ------------------------------------------------------------------
-    # 3. DIRECCIÓN CREATIVA (HOMENAJE A SATHARA 👑)
-    # ------------------------------------------------------------------
+    # 3. DIRECCIÓN CREATIVA
     box_creator = QFrame()
     box_creator.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
     box_creator.setStyleSheet("""
@@ -205,11 +193,11 @@ def build_about_tab(dialog, layout: QVBoxLayout):
     c_layout.setSpacing(8)
 
     c_head = QHBoxLayout()
-    lbl_c_title = QLabel("👑  DIRECCIÓN CREATIVA & VISIÓN DE PRODUCTO", box_creator)
+    lbl_c_title = QLabel("🎨  DIRECCIÓN CREATIVA & DISEÑO DE PRODUCTO", box_creator)
     lbl_c_title.setStyleSheet("font-size: 11px; font-weight: 900; color: #A4E062; letter-spacing: 0.5px;")
     c_head.addWidget(lbl_c_title, 1)
 
-    lbl_c_badge = QLabel("SATHARA 👑", box_creator)
+    lbl_c_badge = QLabel("SATHARA", box_creator)
     lbl_c_badge.setStyleSheet("""
         QLabel {
             color: #FFFFFF; font-size: 9.5px; font-weight: 900;
@@ -221,10 +209,12 @@ def build_about_tab(dialog, layout: QVBoxLayout):
     c_layout.addLayout(c_head)
 
     lbl_creator_bio = QLabel(
-        "Ideado y dirigido por <b>Sathara</b> bajo una visión clara: <b>cero lag, control total, "
-        "estética esports pulida y herramientas ágiles para creadores y comunidades competitivas</b>.<br>"
-        "Supervisó cada detalle: desde el centrado matemático inmutable de los nombres de jugador "
-        "hasta la integración fluida para monitores de alta tasa de refresco.",
+        "Diseñado y conceptualizado por <b>Sathara</b> como una herramienta integral para comunidades "
+        "competitivas, creadores de contenido y organizadores de torneos de Overwatch.<br>"
+        "Definió la visión técnica del producto: <b>rendimiento fluido, control total del operador sin bloqueos de estado, "
+        "diseño estructurado de alta densidad y herramientas ágiles para partidas personalizadas</b>.<br>"
+        "Supervisó los requerimientos clave del sistema, incluyendo la anatomía inmutable de ranuras, la rotación "
+        "continua justa y la preservación geométrica de las ventanas.",
         box_creator
     )
     lbl_creator_bio.setWordWrap(True)
@@ -233,7 +223,7 @@ def build_about_tab(dialog, layout: QVBoxLayout):
 
     mains_row = QHBoxLayout()
     mains_row.setSpacing(6)
-    lbl_m_title = QLabel("Trinidad de Mains:", box_creator)
+    lbl_m_title = QLabel("Héroes de Referencia:", box_creator)
     lbl_m_title.setStyleSheet("color: #8C92A4; font-size: 11px; font-weight: 700;")
     mains_row.addWidget(lbl_m_title)
 
@@ -252,9 +242,7 @@ def build_about_tab(dialog, layout: QVBoxLayout):
 
     layout.addWidget(box_creator)
 
-    # ------------------------------------------------------------------
-    # 4. PROTOCOLO S.A.T.H.A.N.A. CORE (IA REACTIVA & TELEMETRÍA)
-    # ------------------------------------------------------------------
+    # 4. S.A.T.H.A.N.A. CORE
     box_ai = create_card_box("🤖 Asistente Táctico // S.A.T.H.A.N.A. Core")
     box_ai.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
     ai_layout = QVBoxLayout(box_ai)
@@ -263,8 +251,8 @@ def build_about_tab(dialog, layout: QVBoxLayout):
 
     ai_desc = QLabel(
         "<b>S.A.T.H.A.N.A.</b> (<i>Sistema Autónomo Táctico de Habilidad, Arbitraje y Nivelación Avanzada</i>) "
-        "es el módulo de telemetría y personalidades reactivas del sistema. Monitorea el lobby y "
-        "ofrece análisis tácticos e impresiones algorítmicas.",
+        "describe los criterios algorítmicos y directrices técnicas implementadas en el motor de matchmaking. "
+        "Permite consultar principios operativos del sistema y verificar el diagnóstico de integridad del software.",
         box_ai
     )
     ai_desc.setWordWrap(True)
@@ -278,14 +266,14 @@ def build_about_tab(dialog, layout: QVBoxLayout):
 
     lbl_ai_quote = QLabel(_OPINIONS_BAG.get_next(), msg_container)
     lbl_ai_quote.setWordWrap(True)
-    lbl_ai_quote.setStyleSheet("color: #C2F87A; font-size: 11px; font-weight: 700; font-style: italic;")
+    lbl_ai_quote.setStyleSheet("color: #C2F87A; font-size: 11px; font-weight: 700;")
     mc_layout.addWidget(lbl_ai_quote)
     ai_layout.addWidget(msg_container)
 
     btn_row = QHBoxLayout()
     btn_row.setSpacing(8)
 
-    btn_quote = QPushButton("💬  Consultar a la IA", box_ai)
+    btn_quote = QPushButton("💬  Consultar Criterio Táctico", box_ai)
     btn_quote.setCursor(Qt.CursorShape.PointingHandCursor)
     btn_quote.setStyleSheet("""
         QPushButton {
@@ -313,10 +301,8 @@ def build_about_tab(dialog, layout: QVBoxLayout):
     ai_layout.addLayout(btn_row)
     layout.addWidget(box_ai)
 
-    # ------------------------------------------------------------------
-    # 5. GUÍA RÁPIDA DE ATAJOS Y POWER USER
-    # ------------------------------------------------------------------
-    box_qol = create_card_box("⚡ Atajos y Funciones Clave (Power User)")
+    # 5. GUÍA RÁPIDA DE ATAJOS
+    box_qol = create_card_box("⚡ Atajos y Operación Rápida del Sistema")
     box_qol.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
     qol_layout = QVBoxLayout(box_qol)
     qol_layout.setContentsMargins(14, 12, 16, 12)
@@ -335,9 +321,9 @@ def build_about_tab(dialog, layout: QVBoxLayout):
         row.addWidget(lbl_t, 1)
         return row
 
-    qol_layout.addLayout(_qol_entry("🔀", "Mezcla con Teclado", "Presiona Ctrl + Enter en cualquier momento para mezclar una nueva partida."))
-    qol_layout.addLayout(_qol_entry("🖱️", "Multiselección Rápida", "Usa Ctrl + Clic, Shift + Clic o la caja elástica con el ratón para gestionar varios jugadores."))
-    qol_layout.addLayout(_qol_entry("📦", "Drag & Drop Inteligente", "Arrastra jugadores directamente entre equipos para intercambiarlos en un solo movimiento."))
-    qol_layout.addLayout(_qol_entry("🎯", "Anatomía Inmutable", "Elige en Personalizar tu orden favorito de slot; el nombre siempre se ancla al centro."))
-    qol_layout.addLayout(_qol_entry("🧈", "Scroll a 144 Hz", "Física cinética con temporizador de precisión en listas verticales y barras horizontales."))
+    qol_layout.addLayout(_qol_entry("🔀", "Mezcla por Teclado", "Ejecuta Ctrl + Enter desde cualquier pestaña para generar un nuevo emparejamiento."))
+    qol_layout.addLayout(_qol_entry("🖱️", "Operaciones por Lote", "Utiliza Ctrl + Clic, Shift + Clic o arrastre de caja elástica para transferencias múltiples."))
+    qol_layout.addLayout(_qol_entry("📦", "Intercambio Directo", "Arrastra tarjetas de jugador directamente entre ranuras de equipos para intercambiar posiciones."))
+    qol_layout.addLayout(_qol_entry("🎯", "Persistencia de Ranuras", "Configura la alineación en Personalizar; el centrado matemático se mantiene inmutable."))
+    qol_layout.addLayout(_qol_entry("🖥️", "Memoria de Ventana", "Almacenamiento automático de resolución y posición en pantalla compatible con multi-monitor."))
     layout.addWidget(box_qol)

@@ -1,10 +1,9 @@
-"""Bench panel ('Zona de Espera') with distinct separator line, outline toolbar buttons, and clean drag lifecycle."""
+"""Bench panel ('Zona de Espera') with clean drag lifecycle, zero outlines, and tactical theme support."""
 
 from __future__ import annotations
-from .smooth_scroll import SmoothScrollArea
 
 from PySide6.QtCore import QPoint, QRect, QSize, Qt, Signal
-from PySide6.QtGui import QAction, QColor, QDrag, QCursor, QPainter, QBrush, QPen, QFont
+from PySide6.QtGui import QAction, QBrush, QColor, QCursor, QDrag, QPainter, QPen
 from PySide6.QtWidgets import (
     QApplication,
     QColorDialog,
@@ -18,7 +17,6 @@ from PySide6.QtWidgets import (
     QMenu,
     QPushButton,
     QRubberBand,
-    QScrollArea,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -33,13 +31,72 @@ from owervach_tmixer.core.special_player import (
 from owervach_tmixer.ui.dialogs.player_properties_dialog import PlayerPropertiesDialog
 from owervach_tmixer.ui.styles import theme
 from .dnd import clear_all_drop_highlights, make_payload, payload_from, payload_to_mime, set_drop_highlight
-from .marquee_label import MarqueeLabel
+from .smooth_scroll import SmoothScrollArea
 
-_NUM_COLUMNS = 2
-_CHIP_HEIGHT = 36
+_CHIP_HEIGHT = 34
 
 
 class _BenchChip(QFrame):
+    """A single compact bench-entry chip in the grid with custom colors."""
+
+    def __init__(self, panel: BenchPanel, player: Player, saved: bool, queue_pos: int | None = None, is_next_up: bool = False):
+        super().__init__(panel)
+        self._panel = panel
+        self.player = player
+        self.name = player.name
+        self.saved = saved
+        self.queue_pos = queue_pos
+        self.is_next_up = is_next_up
+        self.special = is_special_player_name(player.name)
+        self._pressing = False
+        self._press_pos = QPoint()
+        self._is_selected = False
+
+        self.setObjectName("benchChip")
+        self.setFixedHeight(_CHIP_HEIGHT)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setMinimumWidth(8)
+        self.setToolTip("Arrastra para añadir a un equipo · Doble clic: añadir automáticamente · Clic derecho: opciones")
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(lambda pos, chip=self: self._panel._show_chip_menu(chip, pos))
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(8, 3, 6, 3)
+        layout.setSpacing(6)
+
+        # 1. Micro-píldora externa de cola predictiva (#1, #2...)
+        self.queue_badge = QLabel(self)
+        self.queue_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.queue_badge.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self._apply_queue_badge_style()
+        layout.addWidget(self.queue_badge, 0)
+
+        # 2. Indicadores (👑 ⚡5 🔒 ⭐)
+        self.indicator = QLabel(self._indicators())
+        self.indicator.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        self.indicator.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.indicator.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.indicator, 0)
+
+        # 3. Nombre del jugador con expansión total
+        self.name_label = QLabel(self.name, self)
+        self.name_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.name_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.name_label.setStyleSheet("color: #E2E6F0; font-size: 11.5px; font-weight: 700; background: transparent;")
+        self.name_label.setToolTip(self.name)
+        layout.addWidget(self.name_label, 1)
+
+        # 4. Botón quitar
+        self.remove_btn = QPushButton("✕")
+        self.remove_btn.setFixedSize(18, 18)
+        self.remove_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.remove_btn.setToolTip("Quitar de Zona de Espera")
+        self.remove_btn.setFlat(True)
+        self.remove_btn.clicked.connect(lambda: self._panel.remove_from_bench.emit(self.name))
+        layout.addWidget(self.remove_btn)
+
+        self._apply_chip_style()
+
     def set_selected(self, selected: bool):
         self._is_selected = selected
         self._apply_chip_style()
@@ -61,52 +118,37 @@ class _BenchChip(QFrame):
                 return
         super().dropEvent(event)
 
-    """A single compact bench-entry chip in the grid with custom colors."""
-
-    def __init__(self, panel: BenchPanel, player: Player, saved: bool):
-        super().__init__(panel)
-        self._panel = panel
-        self.player = player
-        self.name = player.name
-        self.saved = saved
-        self.special = is_special_player_name(player.name)
-        self._pressing = False
-        self._press_pos = QPoint()
-        self.setObjectName("benchChip")
-        self.setFixedHeight(_CHIP_HEIGHT)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.setMinimumWidth(8)
-        self.setToolTip("Arrastra para añadir a un equipo · Doble clic: añadir automáticamente · Clic derecho: opciones")
-        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.customContextMenuRequested.connect(lambda pos, chip=self: self._panel._show_chip_menu(chip, pos))
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(6, 3, 4, 3)
-        layout.setSpacing(4)
-
-        self.indicator = QLabel(self._indicators())
-        self.indicator.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-        self.indicator.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-        self.indicator.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.indicator, 0)
-
-        self.name_label = MarqueeLabel(self.name, self, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        self.name_label.setMinimumWidth(8)
-        self.name_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-        layout.addWidget(self.name_label, 1)
-
-        self.remove_btn = QPushButton("✕")
-        self.remove_btn.setFixedSize(18, 18)
-        self.remove_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.remove_btn.setToolTip("Quitar de Zona de Espera")
-        self.remove_btn.setFlat(True)
-        self.remove_btn.clicked.connect(lambda: self._panel.remove_from_bench.emit(self.name))
-        layout.addWidget(self.remove_btn)
-
-        self._apply_chip_style()
+    def _apply_queue_badge_style(self):
+        if self.queue_pos is not None:
+            self.queue_badge.setText(f"#{self.queue_pos}")
+            if self.is_next_up:
+                self.queue_badge.setStyleSheet("""
+                    QLabel {
+                        font-size: 10px; font-weight: 900; color: #FFAA00;
+                        background-color: rgba(255, 170, 0, 0.16);
+                        border: 1px solid #FFAA00;
+                        border-radius: 4px; padding: 0px 4px;
+                    }
+                """)
+            else:
+                self.queue_badge.setStyleSheet("""
+                    QLabel {
+                        font-size: 10px; font-weight: 700; color: #8A909E;
+                        background-color: rgba(255, 255, 255, 0.05);
+                        border: 1px solid #323540;
+                        border-radius: 4px; padding: 0px 4px;
+                    }
+                """)
+            self.queue_badge.show()
+        else:
+            self.queue_badge.hide()
 
     def _indicators(self) -> str:
         parts = []
+        if is_special_player_name(self.player.name):
+            parts.append("⚜️")
+        if getattr(self.player, "is_vip", False):
+            parts.append("👑")
         if getattr(self._panel, "_show_mmr", False):
             mmr = getattr(self.player, "mmr", 5)
             parts.append(f"⚡{mmr}")
@@ -117,61 +159,74 @@ class _BenchChip(QFrame):
         return " ".join(parts) or ""
 
     def _apply_chip_style(self):
+        t = theme.tokens()
         custom_color = getattr(self.player, "custom_color", None)
-        accent = theme.accent()
-        if getattr(self, "_is_selected", False):
-            self.setStyleSheet("""
-                QFrame#benchChip {
+        accent = t.accent
+        r = t.border_radius
+        is_ow = (t.id == "overwatch")
+
+        if self._is_selected:
+            self.setStyleSheet(f"""
+                QFrame#benchChip {{
                     background-color: rgba(0, 180, 255, 0.22);
                     border: 1.5px solid #00B4FF;
-                    border-radius: 6px;
-                }
-                QLabel { color: #FFFFFF; font-size: 11px; font-weight: 800; background: transparent; }
-                QPushButton { background: transparent; border: none; color: #FFFFFF; }
+                    border-radius: {r}px;
+                }}
+                QLabel {{ color: #FFFFFF; font-size: 11px; font-weight: 800; background: transparent; }}
+                QPushButton {{ background: transparent; border: none; color: #FFFFFF; }}
             """)
             return
 
         if self.special:
-            self.setStyleSheet("""
-                QFrame#benchChip {
+            self.setStyleSheet(f"""
+                QFrame#benchChip {{
                     background-color: #1D261A;
                     border: 1px solid #48781B;
-                    border-radius: 6px;
-                }
-                QFrame#benchChip:hover { background-color: #263321; border-color: #61ab02; }
-                QLabel { color: #A4E062; font-size: 11px; font-weight: 700; background: transparent; }
-                QPushButton { background: transparent; border: none; color: #A4E062; }
-                QPushButton:hover { color: #FF6B6B; }
+                    border-radius: {r}px;
+                }}
+                QFrame#benchChip:hover {{ background-color: #263321; border-color: #61ab02; }}
+                QLabel {{ color: #A4E062; font-size: 11px; font-weight: 700; background: transparent; }}
+                QPushButton {{ background: transparent; border: none; color: #A4E062; }}
+                QPushButton:hover {{ color: #FF6B6B; }}
             """)
             glow = self._panel._make_glow(self)
             self.setGraphicsEffect(glow)
         elif custom_color:
             self.setStyleSheet(f"""
                 QFrame#benchChip {{
-                    background-color: #181A1E;
+                    background-color: {t.bg_surface};
                     border: 1px solid {custom_color};
-                    border-radius: 6px;
+                    border-radius: {r}px;
                 }}
                 QFrame#benchChip:hover {{
-                    background-color: #22252C;
+                    background-color: {t.bg_elevated};
                 }}
                 QLabel {{ color: {custom_color}; font-size: 11px; font-weight: 700; background: transparent; }}
                 QPushButton {{ background: transparent; border: none; color: {custom_color}; font-size: 11px; }}
                 QPushButton:hover {{ color: #FF5555; }}
             """)
         else:
+            is_next = getattr(self, "is_next_up", False)
+            if is_ow:
+                chip_border = "#FFAA00" if is_next else "transparent"
+                hover_border = "#00F0FF"
+            else:
+                chip_border = "#FFAA00" if is_next else t.border_subtle
+                hover_border = accent
+
+            chip_bg = "#221C12" if is_next else t.bg_surface
             self.setStyleSheet(f"""
                 QFrame#benchChip {{
-                    background-color: #181A1E;
-                    border: 1px solid #2B2E36;
-                    border-radius: 6px;
+                    background-color: {chip_bg};
+                    border: 1px solid {chip_border};
+                    border-radius: {r}px;
                 }}
                 QFrame#benchChip:hover {{
-                    background-color: #22252C;
-                    border-color: {accent};
+                    background-color: {t.bg_elevated};
+                    border: 1.5px solid {hover_border};
                 }}
-                QLabel {{ color: #D8D8D8; font-size: 11px; font-weight: 600; background: transparent; }}
-                QPushButton {{ background: transparent; border: none; color: #777777; font-size: 11px; }}
+                QLabel {{ color: {t.text_primary}; font-size: 11px; font-weight: 600; background: transparent; }}
+                QPushButton {{ background: transparent; border: none; color: {t.text_muted}; font-size: 11px; }}
                 QPushButton:hover {{ color: #FF5555; }}
             """)
 
@@ -258,10 +313,6 @@ class _BenchChip(QFrame):
             return
         super().mouseMoveEvent(event)
 
-    def mouseReleaseEvent(self, event):
-        self._pressing = False
-        super().mouseReleaseEvent(event)
-
     def mouseDoubleClickEvent(self, event):
         self._pressing = False
         self._panel.add_to_team.emit(self.name, 0)
@@ -279,6 +330,7 @@ class BenchPanel(QFrame):
     bench_drop_entry = Signal(object)
     fill_teams_requested = Signal()
     bench_all_requested = Signal()
+    rotate_requested = Signal()
     player_role_mmr_changed = Signal(str, object, int)
     player_renamed = Signal(str, str)
     player_color_changed = Signal(str, object)
@@ -299,46 +351,38 @@ class BenchPanel(QFrame):
         self.setObjectName("benchPanel")
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(8)
+        layout.setContentsMargins(8, 4, 8, 6)
+        layout.setSpacing(6)
 
-        # 1. Outline Toolbar Row
-        header = QHBoxLayout()
-        header.setContentsMargins(0, 0, 0, 0)
-        header.setSpacing(8)
+        # Cabecera de Botonera: 33% / 33% / 33% alineados simétricamente
+        head_row = QHBoxLayout()
+        head_row.setContentsMargins(0, 0, 0, 0)
+        head_row.setSpacing(6)
+
+        self.lbl_espectadores = QLabel("", self)
+        self.lbl_espectadores.hide()
 
         self.btn_fill = QPushButton("📥 Rellenar")
         self.btn_fill.setToolTip("Rellenar huecos de los equipos con jugadores en espera")
         self.btn_fill.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_fill.clicked.connect(self.fill_teams_requested.emit)
-        header.addWidget(self.btn_fill, 1)
+        head_row.addWidget(self.btn_fill, 1)
+
+        self.btn_rotate = QPushButton("🔄 Rotar")
+        self.btn_rotate.setToolTip("Rotar ahora: Intercambiar jugadores en espera con los de partida")
+        self.btn_rotate.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_rotate.clicked.connect(self.rotate_requested.emit)
+        head_row.addWidget(self.btn_rotate, 1)
 
         self.btn_bench_all = QPushButton("📤 A Espera")
         self.btn_bench_all.setToolTip("Enviar todos los jugadores de los equipos a Zona de Espera")
         self.btn_bench_all.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_bench_all.setStyleSheet("""
-            QPushButton {
-                font-size: 11px;
-                font-weight: 700;
-                color: #FFAAAA;
-                background-color: #1C1417;
-                border: 1px solid #6E222B;
-                border-radius: 5px;
-                padding: 6px 10px;
-            }
-            QPushButton:hover {
-                background-color: #381A20;
-                border-color: #FF4444;
-                color: #FFFFFF;
-            }
-            QPushButton:pressed { background-color: #140E10; }
-        """)
         self.btn_bench_all.clicked.connect(self.bench_all_requested.emit)
-        header.addWidget(self.btn_bench_all, 1)
+        head_row.addWidget(self.btn_bench_all, 1)
 
-        layout.addLayout(header)
+        layout.addLayout(head_row)
 
-        # 2. Separador Obsidian Nítido
+        # 2. Separador
         self.sep = QFrame(self)
         self.sep.setFrameShape(QFrame.Shape.HLine)
         self.sep.setFixedHeight(1)
@@ -355,8 +399,6 @@ class BenchPanel(QFrame):
         self._grid.setContentsMargins(0, 0, 0, 0)
         self._grid.setHorizontalSpacing(6)
         self._grid.setVerticalSpacing(6)
-        for col in range(_NUM_COLUMNS):
-            self._grid.setColumnStretch(col, 1)
         self._grid_container.addLayout(self._grid)
         self._grid_container.addStretch(1)
 
@@ -377,40 +419,152 @@ class BenchPanel(QFrame):
         self.apply_theme()
 
     def apply_theme(self):
-        accent = theme.accent()
+        t = theme.tokens()
+        accent = t.accent
+        is_ow = (t.id == "overwatch")
+
+        panel_border = "border: none;" if is_ow else f"border: 1px solid {t.border_subtle};"
         self.setStyleSheet(f"""
             QFrame#benchPanel {{
-                background-color: #16171D;
-                border: 1px solid #282A33;
-                border-radius: 8px;
+                background-color: {t.bg_surface};
+                {panel_border}
+                border-radius: {t.border_radius}px;
             }}
             QFrame#benchPanel[dropTarget="true"] {{
                 border: 1.5px solid {accent};
-                background-color: #1F261B;
+                background-color: {t.accent_rgba(0.20)};
             }}
             QScrollArea#benchScroll, QWidget#benchGrid {{
                 background-color: transparent;
                 border: none;
             }}
         """)
+
+        # Textos sin emojis en Overwatch
+        if is_ow:
+            self.lbl_espectadores.setText("ESPECTADORES")
+            self.lbl_espectadores.setStyleSheet(f"font-family: {t.font_family_display}; font-size: 15px; font-weight: 900; font-style: italic; color: #C8D6E5; letter-spacing: 0.8px; background: transparent; border: none; padding: 2px 0;")
+            self.btn_fill.setText("RELLENAR")
+            self.btn_rotate.setText("ROTAR")
+            self.btn_bench_all.setText("A ESPERA")
+        else:
+            self.lbl_espectadores.setText("ZONA DE ESPERA")
+            self.lbl_espectadores.setStyleSheet("font-size: 12px; font-weight: 800; color: #9AA0B2; background: transparent; border: none;")
+            self.btn_fill.setText("📥 Rellenar")
+            self.btn_rotate.setText("🔄 Rotar")
+            self.btn_bench_all.setText("📤 A Espera")
+
         if hasattr(self, "btn_fill"):
-            self.btn_fill.setStyleSheet(f"""
-                QPushButton {{
-                    font-size: 11px;
-                    font-weight: 700;
-                    color: #FFFFFF;
-                    background-color: #171A24;
-                    border: 1px solid {accent};
-                    border-radius: 5px;
-                    padding: 6px 10px;
-                }}
-                QPushButton:hover {{
-                    background-color: {theme.accent_rgba(0.14)};
-                    border-color: {theme.accent_light()};
-                    color: #FFFFFF;
-                }}
-                QPushButton:pressed {{ background-color: #12141C; }}
-            """)
+            if is_ow:
+                self.btn_fill.setStyleSheet("""
+                    QPushButton {
+                        font-family: "Futura", "Segoe UI", sans-serif;
+                        font-size: 11px;
+                        font-weight: 800;
+                        color: #151F2E;
+                        background-color: #EDF2F7;
+                        border: none;
+                        border-radius: 3px;
+                        padding: 6px;
+                    }
+                    QPushButton:hover {
+                        background-color: #FFFFFF;
+                        border: 1px solid #00F0FF;
+                    }
+                """)
+            else:
+                self.btn_fill.setStyleSheet(f"""
+                    QPushButton {{
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: #A4E062;
+                        background-color: rgba(97, 171, 2, 0.08);
+                        border: 1px solid #61ab02;
+                        border-radius: 5px;
+                        padding: 5px 4px;
+                    }}
+                    QPushButton:hover {{
+                        background-color: rgba(97, 171, 2, 0.22);
+                        border-color: #A4E062;
+                        color: #FFFFFF;
+                    }}
+                    QPushButton:pressed {{ background-color: rgba(97, 171, 2, 0.35); }}
+                """)
+
+        if hasattr(self, "btn_rotate"):
+            if is_ow:
+                self.btn_rotate.setStyleSheet("""
+                    QPushButton {
+                        font-family: "Futura", "Segoe UI", sans-serif;
+                        font-size: 11px;
+                        font-weight: 800;
+                        color: #FFFFFF;
+                        background-color: #F99E1A;
+                        border: none;
+                        border-radius: 3px;
+                        padding: 6px;
+                    }
+                    QPushButton:hover {
+                        background-color: #FFAE33;
+                    }
+                """)
+            else:
+                self.btn_rotate.setStyleSheet("""
+                    QPushButton {
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: #FFAA00;
+                        background-color: rgba(255, 170, 0, 0.08);
+                        border: 1px solid #FFAA00;
+                        border-radius: 5px;
+                        padding: 5px 4px;
+                    }
+                    QPushButton:hover {
+                        background-color: rgba(255, 170, 0, 0.22);
+                        border-color: #FFC040;
+                        color: #FFFFFF;
+                    }
+                    QPushButton:pressed { background-color: rgba(255, 170, 0, 0.35); }
+                """)
+
+        if hasattr(self, "btn_bench_all"):
+            if is_ow:
+                self.btn_bench_all.setStyleSheet("""
+                    QPushButton {
+                        font-family: "Futura", "Segoe UI", sans-serif;
+                        font-size: 11px;
+                        font-weight: 800;
+                        color: #FF7788;
+                        background-color: #2D1418;
+                        border: none;
+                        border-radius: 3px;
+                        padding: 6px;
+                    }
+                    QPushButton:hover {
+                        background-color: #4A1920;
+                        border: 1px solid #FF4444;
+                        color: #FFFFFF;
+                    }
+                """)
+            else:
+                self.btn_bench_all.setStyleSheet("""
+                    QPushButton {
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: #FF8B8B;
+                        background-color: rgba(255, 68, 68, 0.08);
+                        border: 1px solid #FF4444;
+                        border-radius: 5px;
+                        padding: 5px 4px;
+                    }
+                    QPushButton:hover {
+                        background-color: rgba(255, 68, 68, 0.22);
+                        border-color: #FFAAAA;
+                        color: #FFFFFF;
+                    }
+                    QPushButton:pressed { background-color: rgba(255, 68, 68, 0.35); }
+                """)
+
         for chip in self.chips:
             chip._apply_chip_style()
 
@@ -463,6 +617,32 @@ class BenchPanel(QFrame):
     def dropEvent(self, event):
         self._dnd_drop(event)
 
+    def _current_columns(self) -> int:
+        w = self.width()
+        if w >= 850:
+            return 4
+        elif w >= 650:
+            return 3
+        elif w >= 450:
+            return 2
+        return 1
+
+    def _relayout_grid(self):
+        cols = self._current_columns()
+        while self._grid.count():
+            self._grid.takeAt(0)
+        for col in range(cols):
+            self._grid.setColumnStretch(col, 1)
+        for i, chip in enumerate(self.chips):
+            self._grid.addWidget(chip, i // cols, i % cols)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        cols = self._current_columns()
+        if getattr(self, "_last_cols", None) != cols:
+            self._last_cols = cols
+            self._relayout_grid()
+
     def set_bench(self, bench: list[Player], saved_names: set[str],
                   fixed_team: set[str] | None = None, show_mmr: bool = False):
         self._show_mmr = show_mmr
@@ -474,16 +654,64 @@ class BenchPanel(QFrame):
             if item.widget() is not None:
                 item.widget().deleteLater()
 
-        # Purgar selecciones de jugadores que ya no están en la banca
         bench_names_set = {p.name for p in bench}
         self.selected_names.intersection_update(bench_names_set)
         if self._last_selected not in bench_names_set:
             self._last_selected = None
 
+        p_win = self.window()
+        s = getattr(p_win, "settings_manager", None)
+        settings = getattr(s, "settings", None)
+        rotation_enabled = getattr(settings, "bench_rotation_enabled", False)
+        batch_limit = getattr(settings, "rotation_batch_size", 2)
+
+        queue_map = {}
+        if rotation_enabled and bench:
+            bench_ranked = sorted(
+                bench,
+                key=lambda p: (getattr(p, "streak_benched", 0), -getattr(p, "streak_played", 0)),
+                reverse=True
+            )
+            queue_map = {p.name: idx + 1 for idx, p in enumerate(bench_ranked)}
+
+        cols = self._current_columns()
+        self._last_cols = cols
+        for col in range(cols):
+            self._grid.setColumnStretch(col, 1)
+
         self.chips = []
+        t = theme.tokens()
+        is_ow = (t.id == "overwatch")
+
+        # Si no hay jugadores en espera en tema Overwatch, mostrar ranuras oficiales VACÍO
+        if not bench and is_ow:
+            for i in range(2):
+                lbl_vacio = QLabel("VACÍO", self.bench_grid)
+                lbl_vacio.setFixedHeight(_CHIP_HEIGHT)
+                lbl_vacio.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                lbl_vacio.setStyleSheet(f"""
+                    QLabel {{
+                        font-family: {t.font_family};
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: #5C6E86;
+                        background-color: rgba(11, 18, 30, 0.70);
+                        border: 1px solid transparent;
+                        border-radius: 3px;
+                    }}
+                """)
+                self._grid.addWidget(lbl_vacio, 0, i)
+
         for i, p in enumerate(bench):
-            chip = _BenchChip(self, p, saved=p.name.casefold() in saved_lower)
-            self._grid.addWidget(chip, i // _NUM_COLUMNS, i % _NUM_COLUMNS)
+            q_pos = queue_map.get(p.name)
+            is_next = (q_pos is not None and q_pos <= batch_limit)
+            chip = _BenchChip(
+                self, p,
+                saved=p.name.casefold() in saved_lower,
+                queue_pos=q_pos,
+                is_next_up=is_next
+            )
+            self._grid.addWidget(chip, i // cols, i % cols)
             self.chips.append(chip)
 
     def find_chip(self, name: str) -> _BenchChip | None:
@@ -491,7 +719,6 @@ class BenchPanel(QFrame):
             if chip.name == name:
                 return chip
         return None
-
 
     def _select_single_chip(self, name: str):
         self.selected_names = {name}
@@ -567,9 +794,12 @@ class BenchPanel(QFrame):
         name = chip.name
         is_sp = is_special_player_name(name)
         menu = QMenu(self)
-        name = chip.name
-        is_sp = is_special_player_name(name)
-        menu = QMenu(self)
+
+        act_vip = QAction("👑 Prioridad Streamer (Garantizar Partida)", self)
+        act_vip.setCheckable(True)
+        act_vip.setChecked(getattr(chip.player, "is_vip", False))
+        act_vip.triggered.connect(lambda checked: self._toggle_chip_vip(chip, checked))
+        menu.addAction(act_vip)
 
         if not is_sp:
             act_rename = QAction("✏️ Renombrar jugador...", self)
@@ -613,7 +843,6 @@ class BenchPanel(QFrame):
         menu.addAction(act_remove)
 
         menu.exec(chip.mapToGlobal(pos))
-
 
     def _show_bulk_chip_menu(self, pos):
         menu = QMenu(self)
@@ -678,9 +907,26 @@ class BenchPanel(QFrame):
             chip.indicator.setText(chip._indicators())
             self.player_role_mmr_changed.emit(chip.name, None, gen)
 
+    def _toggle_chip_vip(self, chip: _BenchChip, is_vip: bool):
+        p_win = self.window()
+        if hasattr(p_win, "roster_controller"):
+            p_win.roster_controller.set_global_player_vip(chip.name, is_vip)
+        else:
+            chip.player.is_vip = is_vip
+            chip.indicator.setText(chip._indicators())
+
+    def _clear_all_streamer_vips(self):
+        p_win = self.window()
+        if hasattr(p_win, "roster_controller"):
+            p_win.roster_controller.clear_all_vips()
 
     def _show_empty_area_menu(self, global_pos):
         menu = QMenu(self)
+
+        act_clear_vips = QAction("👑 Quitar todas las coronas de Streamer", self)
+        act_clear_vips.triggered.connect(self._clear_all_streamer_vips)
+        menu.addAction(act_clear_vips)
+        menu.addSeparator()
 
         act_fill = QAction("📥 Rellenar partida con jugadores en espera", self)
         act_fill.triggered.connect(self.fill_teams_requested.emit)
@@ -712,7 +958,6 @@ class BenchPanel(QFrame):
     def _prompt_add_manual_player(self):
         name, ok = QInputDialog.getText(self.window(), "Añadir a Zona de Espera", "Nombre del jugador:")
         if ok and name.strip():
-            from owervach_tmixer.core.special_player import format_player_name
             formatted = format_player_name(name.strip(), True)
             p_win = self.window()
             if hasattr(p_win, "roster_controller"):

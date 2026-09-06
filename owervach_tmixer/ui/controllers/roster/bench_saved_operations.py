@@ -85,6 +85,23 @@ class BenchSavedOperationsMixin:
             if is_special_player_name(name):
                 self.win._egg_manager.on_player_permanently_removed(name, self.win)
 
+    def rotate_with_bench(self: RosterController):
+        if not self.roster.bench:
+            self.win.show_toast("ℹ️ No hay jugadores en Zona de Espera para rotar", "info")
+            return
+        s = self.win.settings_manager.settings
+        curr_m = getattr(self.win, "_current_match", None)
+        winner_team = curr_m.winner if curr_m else None
+        p_in, p_out = self.roster.rotate_bench_and_teams(
+            streamer_rest_interval=getattr(s, "streamer_rest_interval", 0),
+            policy=getattr(s, "rotation_policy", "continuous"),
+            batch_size=getattr(s, "rotation_batch_size", 2),
+            min_shield=getattr(s, "min_matches_shield", 2),
+            winner_team=winner_team,
+        )
+        self.after_roster_change()
+        self.win.show_toast(f"🔄 Rotación completada: {p_in} entraron, {p_out} a espera", "success")
+
     def fill_teams_from_bench(self: RosterController):
         if not self.roster.bench:
             self.win.show_toast("ℹ️ No hay jugadores en Zona de Espera", "info")

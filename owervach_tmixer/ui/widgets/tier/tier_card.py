@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 import platformdirs
-from PySide6.QtCore import QMimeData, QPoint, Qt, Signal
+from PySide6.QtCore import QMimeData, QPoint, QRect, Qt, Signal
 from PySide6.QtGui import QColor, QDrag, QFont, QImage, QImageReader, QPainter, QPainterPath, QPixmap
 from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout, QWidget
 
@@ -119,6 +119,7 @@ def get_cached_item_pixmap(
 class TierItemCard(QFrame):
     card_clicked = Signal(object)
     dropped_on_card = Signal(object, dict)
+    selection_requested = Signal(object, object)
 
     def __init__(
         self,
@@ -136,6 +137,7 @@ class TierItemCard(QFrame):
         self.subtext = subtext
         self.extra_data = extra_data or {}
         self.current_row: Optional[TierRowWidget] = None
+        self.is_selected: bool = False
 
         self.setObjectName("tierItemCard")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -318,6 +320,10 @@ class TierItemCard(QFrame):
             style.polish(self)
         self.update()
 
+    def set_selected(self, selected: bool):
+        self.is_selected = selected
+        self.apply_theme()
+
     def set_drop_highlight(self, highlight: bool):
         self.setProperty("dropTarget", highlight)
         self._repolish()
@@ -353,6 +359,11 @@ class TierItemCard(QFrame):
             hover_bg = "#202432"
             hover_border = accent
 
+        if getattr(self, "is_selected", False):
+            border_col = "#00B4FF"
+            bg_col = "rgba(0, 180, 255, 0.22)"
+            hover_border = "#00B4FF"
+
         self.setStyleSheet(f"""
             QFrame#tierItemCard {{
                 background-color: {bg_col};
@@ -375,9 +386,37 @@ class TierItemCard(QFrame):
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
             self._drag_start_pos = event.pos()
+            self._pressing = True
+            mods = event.modifiers()
+            p_tm = self.window().findChild(QWidget, "tierMakerTab") if hasattr(self.window(), "findChild") else None
+            is_already_selected = p_tm and self in getattr(p_tm, "selected_cards", set())
+
+            # Si ya está seleccionada dentro de un grupo, NO deseleccionar al presionar para permitir el arrastre múltiple
+            if not (mods & (Qt.ControlModifier | Qt.ShiftModifier)) and is_already_selected:
+                pass
+            else:
+                self.selection_requested.emit(self, mods)
+            event.accept()
+            return
         elif event.button() == Qt.RightButton:
             self.card_clicked.emit(self)
+            event.accept()
+            return
         super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton and getattr(self, "_pressing", False):
+            self._pressing = False
+            mods = event.modifiers()
+            p_tm = self.window().findChild(QWidget, "tierMakerTab") if hasattr(self.window(), "findChild") else None
+            # Si solo fue un clic sin arrastrar sobre una carta ya seleccionada de un grupo, colapsar a solo esta
+            if not (mods & (Qt.ControlModifier | Qt.ShiftModifier)):
+                if p_tm and len(getattr(p_tm, "selected_cards", set())) > 1:
+                    self.selection_requested.emit(self, mods)
+            event.accept()
+            return
+        self._pressing = False
+        super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -389,21 +428,53 @@ class TierItemCard(QFrame):
             return
         if (
             event.pos() - getattr(self, "_drag_start_pos", QPoint())
-        ).manhattanLength() < 3:
+        ).manhattanLength() < 4:
             return
+        self._pressing = False
 
         drag = QDrag(self)
         mime = QMimeData()
-        payload = {
-            "kind": self.kind,
-            "name": self.item_name,
-            "subtext": self.subtext,
-            "extra": self.extra_data,
-        }
+
+        p_tm = self.window().findChild(QWidget, "tierMakerTab") if hasattr(self.window(), "findChild") else None
+        selected_cards = getattr(p_tm, "selected_cards", set()) if p_tm else set()
+
+        if self in selected_cards and len(selected_cards) > 1:
+            names = [c.item_name for c in selected_cards]
+            if self.item_name in names:
+                names.remove(self.item_name)
+                names.insert(0, self.item_name)
+            payload = {
+                "kind": self.kind,
+                "name": self.item_name,
+                "subtext": self.subtext,
+                "extra": self.extra_data,
+                "is_multi": True,
+                "names": names,
+            }
+        else:
+            payload = {
+                "kind": self.kind,
+                "name": self.item_name,
+                "subtext": self.subtext,
+                "extra": self.extra_data,
+            }
+
         mime.setData(MIME_TIER_ITEM, json.dumps(payload).encode("utf-8"))
         drag.setMimeData(mime)
 
         pix = self.grab()
+        if payload.get("is_multi"):
+            p_badge = QPainter(pix)
+            p_badge.setRenderHint(QPainter.Antialiasing)
+            badge_rect = QRect(pix.width() - 32, 4, 28, 18)
+            p_badge.setBrush(QColor("#00B4FF"))
+            p_badge.setPen(Qt.NoPen)
+            p_badge.drawRoundedRect(badge_rect, 4, 4)
+            p_badge.setPen(QColor("#FFFFFF"))
+            p_badge.setFont(QFont("Segoe UI", 9, QFont.Bold))
+            p_badge.drawText(badge_rect, Qt.AlignCenter, f"+{len(selected_cards)}")
+            p_badge.end()
+
         drag.setPixmap(pix)
         drag.setHotSpot(QPoint(pix.width() // 2, pix.height() // 2))
 

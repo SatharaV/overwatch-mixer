@@ -1,0 +1,8 @@
+{
+  "version": "1.2.0",
+  "release_type": "RELEASE",
+  "status": "Producción Estable",
+  "channel": "Stable",
+  "codename": "Overlord",
+  "build_date": "2026-09-06"
+}

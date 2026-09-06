@@ -57,6 +57,10 @@ class SettingsManager:
     def geometry(self) -> WindowGeometry:
         return self._geometry
 
+    def update_theme_name(self, theme_name: str):
+        self._settings.theme_name = theme_name
+        self.save()
+
     def update_game_mode(self, mode: GameMode):
         self._settings.game_mode = mode
         self.save()
@@ -122,12 +126,27 @@ class SettingsManager:
         if hasattr(self._settings, "window_geometry"):
             self._settings.window_geometry = geometry.to_dict()
         self.save()
-        if hasattr(self._settings, "window_geometry"):
-            self._settings.window_geometry = geometry.to_dict()
-        self.save()
 
     def save(self):
         self.storage.save_settings(self._settings)
+
+    def get_window_geometry(self, window_id: str = "main", default_size: tuple[int, int] = (1280, 720)) -> WindowGeometry:
+        raw_map = getattr(self._settings, "window_geometries", {})
+        raw = raw_map.get(window_id) if isinstance(raw_map, dict) else None
+        if not raw and window_id == "main":
+            raw = getattr(self._settings, "window_geometry", None)
+        if isinstance(raw, dict) and raw.get("width", 0) > 0:
+            return WindowGeometry.from_dict(raw)
+        return WindowGeometry(width=default_size[0], height=default_size[1])
+
+    def update_window_geometry(self, window_id: str, geometry: WindowGeometry):
+        if not hasattr(self._settings, "window_geometries") or not isinstance(self._settings.window_geometries, dict):
+            self._settings.window_geometries = {}
+        self._settings.window_geometries[window_id] = geometry.to_dict()
+        if window_id == "main":
+            self._geometry = geometry
+            self._settings.window_geometry = geometry.to_dict()
+        self.save()
 
     def reset_to_defaults(self):
         self._settings = MatchSettings()

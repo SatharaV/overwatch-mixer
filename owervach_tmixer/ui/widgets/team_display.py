@@ -95,63 +95,27 @@ class TeamDisplayWidget(QWidget):
 
         is_t1 = (self.team_num == 1)
         team_color = "#00B4FF" if is_t1 else "#FF4444"
-        team_bg = "#15181E" if is_t1 else "#1E1517"
 
-        # Solid Header Bar Frame
+        # 1. Header Bar Frame
         self.header_frame = QFrame(self)
         self.header_frame.setCursor(Qt.CursorShape.PointingHandCursor)
         self.header_frame.setToolTip("Doble clic o clic derecho para renombrar el equipo")
-        self.header_frame.setStyleSheet(f"""
-            QFrame {{
-                background-color: #171920;
-                border: 1px solid #2B2F3D;
-                border-top: 2.5px solid {team_color};
-                border-radius: 8px;
-            }}
-            QFrame:hover {{
-                border-color: #3E4558;
-                background-color: #1B1E28;
-            }}
-        """)
         header_layout = QHBoxLayout(self.header_frame)
         header_layout.setContentsMargins(8, 4, 8, 4)
         header_layout.setSpacing(6)
 
         self.name_label = QLabel(self._team_name, self.header_frame)
-        self.name_label.setStyleSheet("""
-            QLabel {
-                font-size: 15px;
-                font-weight: 900;
-                color: #FFFFFF;
-                background: transparent;
-                border: none;
-                letter-spacing: 0.3px;
-            }
-        """)
         header_layout.addWidget(self.name_label, 1)
 
-        # Doble clic restringido exclusivamente a la cabecera
         self.header_frame.mouseDoubleClickEvent = lambda e: self._prompt_rename_team() if e.button() == Qt.LeftButton else None
         self.name_label.mouseDoubleClickEvent = lambda e: self._prompt_rename_team() if e.button() == Qt.LeftButton else None
 
         self.lbl_count = QLabel("0 / 5", self.header_frame)
-        self.lbl_count.setStyleSheet(f"""
-            QLabel {{
-                font-size: 11px;
-                font-weight: 800;
-                color: {team_color};
-                background-color: rgba({ '0, 180, 255' if is_t1 else '255, 68, 68' }, 0.14);
-                border: 1px solid rgba({ '0, 180, 255' if is_t1 else '255, 68, 68' }, 0.40);
-                border-radius: 4px;
-                padding: 2px 8px;
-            }}
-        """)
         header_layout.addWidget(self.lbl_count, 0)
 
         self.btn_mix_roles = QPushButton("↻ Roles", self.header_frame)
         self.btn_mix_roles.setToolTip("Re-randomizar los roles de este equipo (respeta fijados 🔒)")
         self.btn_mix_roles.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.apply_theme()
         self.btn_mix_roles.clicked.connect(self.reroll_roles.emit)
         header_layout.addWidget(self.btn_mix_roles, 0)
 
@@ -162,44 +126,136 @@ class TeamDisplayWidget(QWidget):
 
         layout.addWidget(self.header_frame)
 
+        # 2. Panel Contenedor de Ranuras
         self.panel = _DropTargetPanel(self)
         self.panel.setObjectName(f"teamPanel{self.team_num}")
         self.panel.setProperty("team", str(self.team_num))
-        self.panel.setStyleSheet(f"""
-            QFrame#teamPanel{self.team_num} {{
-                background-color: {team_bg};
-                border: 1px solid rgba({ '0, 180, 255' if is_t1 else '255, 68, 68' }, 0.25);
-                border-radius: 8px;
-            }}
-        """)
         self.slots_layout = QVBoxLayout(self.panel)
         self.slots_layout.setContentsMargins(8, 8, 8, 8)
         self.slots_layout.setSpacing(7)
 
         layout.addWidget(self.panel, 1)
 
+        # 3. Aplicar tema al final, cuando todos los widgets ya existen
+        self.apply_theme()
+
     def apply_theme(self):
-        accent = theme.accent()
-        self.btn_mix_roles.setStyleSheet(f"""
-            QPushButton {{
-                padding: 4px 10px;
-                font-size: 11px;
-                font-weight: 700;
-                background-color: #22252F;
-                border: 1px solid #363B4B;
-                border-radius: 5px;
-                color: #C6CAD6;
-            }}
-            QPushButton:hover {{
-                background-color: #2D3342;
-                border-color: {accent};
-                color: #FFFFFF;
-            }}
-            QPushButton:pressed {{ background-color: #171920; }}
-            QPushButton:disabled {{ color: #555A68; border-color: #262933; background-color: #181A20; }}
-        """)
+        t = theme.tokens()
+        is_t1 = (self.team_num == 1)
+        team_color = "#00B4FF" if is_t1 else "#FF4444"
+        r = t.border_radius
 
+        if hasattr(self, "header_frame"):
+            if t.layout_type == "classic":
+                border_css = f"border: 1px solid {t.border_subtle}; border-top: 2.5px solid {team_color};"
+            else:
+                border_css = f"border: none; border-top: 3px solid {team_color};"
 
+            self.header_frame.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {t.bg_surface};
+                    {border_css}
+                    border-radius: {r}px;
+                }}
+                QFrame:hover {{
+                    background-color: {t.bg_elevated};
+                }}
+            """)
+
+        if hasattr(self, "name_label"):
+            font_disp = t.font_family_display if t.id == "overwatch" else t.font_family
+            self.name_label.setStyleSheet(f"""
+                QLabel {{
+                    font-family: {font_disp};
+                    font-size: 16px;
+                    font-weight: 900;
+                    font-style: {'italic' if t.id == 'overwatch' else 'normal'};
+                    color: #FFFFFF;
+                    background: transparent;
+                    border: none;
+                    letter-spacing: 0.8px;
+                }}
+            """)
+
+        if hasattr(self, "lbl_count"):
+            if t.layout_type == "tactical_overwatch":
+                self.lbl_count.setStyleSheet(f"""
+                    QLabel {{
+                        font-family: {t.font_family_display};
+                        font-size: 13px;
+                        font-weight: 900;
+                        font-style: italic;
+                        color: {team_color};
+                        background-color: rgba({'0, 180, 255' if is_t1 else '255, 68, 68'}, 0.16);
+                        border: 1px solid rgba({'0, 180, 255' if is_t1 else '255, 68, 68'}, 0.50);
+                        border-radius: 2px;
+                        padding: 2px 10px;
+                        letter-spacing: 0.8px;
+                    }}
+                """)
+            else:
+                self.lbl_count.setStyleSheet(f"""
+                    QLabel {{
+                        font-size: 11px;
+                        font-weight: 800;
+                        color: {team_color};
+                        background-color: rgba({'0, 180, 255' if is_t1 else '255, 68, 68'}, 0.14);
+                        border: 1px solid rgba({'0, 180, 255' if is_t1 else '255, 68, 68'}, 0.40);
+                        border-radius: {max(2, r - 2)}px;
+                        padding: 2px 8px;
+                    }}
+                """)
+
+        if hasattr(self, "panel"):
+            panel_border = "border: none;" if t.id == "overwatch" else f"border: 1px solid {t.border_subtle};"
+            self.panel.setStyleSheet(f"""
+                QFrame#teamPanel{self.team_num} {{
+                    background-color: {t.bg_app};
+                    {panel_border}
+                    border-radius: {r}px;
+                }}
+            """)
+
+        if hasattr(self, "btn_mix_roles"):
+            if t.button_secondary_style == "ice_white":
+                self.btn_mix_roles.setStyleSheet("""
+                    QPushButton {
+                        padding: 4px 10px;
+                        font-family: "Futura", "Segoe UI", sans-serif;
+                        font-size: 11px;
+                        font-weight: 800;
+                        background-color: #EDF2F7;
+                        border: none;
+                        border-radius: 2px;
+                        color: #151F2E;
+                    }
+                    QPushButton:hover {
+                        background-color: #FFFFFF;
+                        border: 1px solid #00F0FF;
+                        color: #000000;
+                    }
+                """)
+            else:
+                self.btn_mix_roles.setStyleSheet(f"""
+                    QPushButton {{
+                        padding: 4px 10px;
+                        font-size: 11px;
+                        font-weight: 700;
+                        background-color: {t.bg_elevated};
+                        border: 1px solid {t.border_subtle};
+                        border-radius: {max(2, r - 2)}px;
+                        color: {t.text_primary};
+                    }}
+                    QPushButton:hover {{
+                        background-color: {t.border_medium};
+                        border-color: {t.border_medium};
+                        color: #FFFFFF;
+                    }}
+                """)
+
+        if hasattr(self, "slot_widgets"):
+            for slot in self.slot_widgets:
+                slot._apply_style()
 
     def _show_header_menu(self, pos):
         menu = QMenu(self)

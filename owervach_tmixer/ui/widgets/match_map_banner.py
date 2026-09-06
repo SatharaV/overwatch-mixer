@@ -1,14 +1,13 @@
-"""Banner widget for displaying the active map with magnetic bottom corners and centered magical AI aura."""
+"""Banner widget for displaying the active map with responsive layout and perfect symmetry."""
 
 from __future__ import annotations
 
 from pathlib import Path
-from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QTimer, Qt, Signal
-from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPixmap, QLinearGradient, QPen
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor, QPainter, QPainterPath, QPixmap, QLinearGradient
 from PySide6.QtWidgets import (
     QFrame,
     QGraphicsDropShadowEffect,
-    QGraphicsOpacityEffect,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -18,15 +17,14 @@ from PySide6.QtWidgets import (
 )
 
 from owervach_tmixer.core.models import Map
-from owervach_tmixer.ui.widgets.map_card import MODE_COLORS, map_image_path, get_cached_map_banner
+from owervach_tmixer.ui.widgets.map_card import MODE_COLORS, map_image_path
 from owervach_tmixer.ui.styles import theme
-
 
 _PANORAMA_CACHE: dict[str, QPixmap] = {}
 
 
 class MatchMapBanner(QFrame):
-    """Panoramic match banner with magnetic bottom corners and magical centered AI text."""
+    """Map banner with generous vertical space for 2-line titles and symmetrical action buttons."""
 
     reroll_requested = Signal()
     clear_requested = Signal()
@@ -37,254 +35,95 @@ class MatchMapBanner(QFrame):
         self._raw_pixmap: QPixmap | None = None
 
         self.setObjectName("matchMapBanner")
-        self.setMinimumHeight(130)
-        self.setMaximumHeight(340)
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
         self._setup_ui()
         self._update_display()
 
     def _setup_ui(self):
-        # 1. Layout Principal (Base Horizontal)
-        main_layout = QHBoxLayout(self)
-        main_layout.setContentsMargins(22, 12, 22, 14)
-        main_layout.setSpacing(12)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(14, 10, 14, 12)
+        main_layout.setSpacing(2)
 
-        # ------------------------------------------------------------------
-        # Columna Izquierda: Imantada al borde inferior izquierdo
-        # ------------------------------------------------------------------
-        left_col = QVBoxLayout()
-        left_col.setContentsMargins(0, 0, 0, 0)
-        left_col.setSpacing(4)
-        left_col.addStretch(1)  # Resorte superior que imanta el contenido abajo
+        # 1. Fila Superior: Modo (Izq) vs Quitar (Der)
+        self.top_row = QHBoxLayout()
+        self.top_row.setContentsMargins(0, 0, 0, 0)
+        self.top_row.setSpacing(6)
 
         self.lbl_mode = QLabel(self)
         self.lbl_mode.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed)
-        self.lbl_mode.setStyleSheet("""
-            QLabel {
-                font-size: 10px;
-                font-weight: 800;
-                padding: 2px 7px;
-                border-radius: 4px;
-                color: #FFFFFF;
-                background-color: #333333;
-            }
-        """)
-        left_col.addWidget(self.lbl_mode, 0, Qt.AlignLeft)
+        self.top_row.addWidget(self.lbl_mode, 0, Qt.AlignLeft | Qt.AlignVCenter)
 
-        self.lbl_name = QLabel(self)
-        self.lbl_name.setStyleSheet("""
-            QLabel {
-                font-size: 26px;
-                font-weight: 900;
-                color: #FFFFFF;
-                background: transparent;
-                letter-spacing: 0.5px;
-            }
-        """)
-        name_shadow = QGraphicsDropShadowEffect(self.lbl_name)
-        name_shadow.setColor(QColor(0, 0, 0, 220))
-        name_shadow.setBlurRadius(10)
-        name_shadow.setOffset(1, 2)
-        self.lbl_name.setGraphicsEffect(name_shadow)
-        left_col.addWidget(self.lbl_name, 0, Qt.AlignLeft)
+        self.top_row.addStretch(1)
 
-        self.lbl_subtitle = QLabel(self)
-        self.lbl_subtitle.setStyleSheet("""
-            QLabel {
-                font-size: 12px;
-                font-weight: 600;
-                color: #A0A4B2;
-                background: transparent;
-            }
-        """)
-        left_col.addWidget(self.lbl_subtitle, 0, Qt.AlignLeft)
-
-        main_layout.addLayout(left_col, 1)
-
-        # Gran espacio central libre (la IA se posiciona por encima de forma absoluta)
-        main_layout.addStretch(1)
-
-        # ------------------------------------------------------------------
-        # Columna Derecha: Imantada al borde inferior derecho
-        # ------------------------------------------------------------------
-        right_col = QVBoxLayout()
-        right_col.setContentsMargins(0, 0, 0, 0)
-        right_col.setSpacing(6)
-        right_col.addStretch(1)  # Resorte superior que imanta los botones abajo
-
-        # Botón Quitar (Arriba a la derecha, X roja, outline blanco, 40% transparencia)
-        self.btn_clear = QPushButton(self)
+        self.btn_clear = QPushButton("✕  Quitar", self)
         self.btn_clear.setToolTip("Deseleccionar mapa actual")
         self.btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_clear.setFixedSize(78, 24)
         self.btn_clear.setStyleSheet("""
             QPushButton {
-                background-color: rgba(16, 18, 24, 0.40);
-                border: 1px solid rgba(255, 255, 255, 0.35);
-                border-radius: 6px;
-                padding: 4px 10px;
-                min-width: 78px;
+                font-size: 11px; font-weight: 700; color: #FF9E9E;
+                background-color: rgba(90, 20, 26, 0.30);
+                border: 1px solid #6E222B; border-radius: 4px; padding: 2px 8px;
             }
-            QPushButton:hover {
-                background-color: rgba(70, 20, 26, 0.65);
-                border-color: #FF5555;
-            }
-            QPushButton:pressed {
-                background-color: rgba(40, 15, 18, 0.85);
-            }
+            QPushButton:hover { background-color: rgba(255, 68, 68, 0.25); border-color: #FF4444; color: #FFFFFF; }
         """)
-        btn_clear_layout = QHBoxLayout(self.btn_clear)
-        btn_clear_layout.setContentsMargins(6, 2, 6, 2)
-        btn_clear_layout.setSpacing(4)
-        btn_clear_layout.setAlignment(Qt.AlignCenter)
-
-        lbl_x = QLabel("✕", self.btn_clear)
-        lbl_x.setStyleSheet("color: #FF4444; font-weight: 900; font-size: 12px; background: transparent; border: none;")
-        lbl_clear_txt = QLabel("Quitar", self.btn_clear)
-        lbl_clear_txt.setStyleSheet("color: #FFFFFF; font-weight: 700; font-size: 11px; background: transparent; border: none;")
-        btn_clear_layout.addWidget(lbl_x)
-        btn_clear_layout.addWidget(lbl_clear_txt)
-
         self.btn_clear.clicked.connect(self.clear_requested.emit)
-        right_col.addWidget(self.btn_clear, 0, Qt.AlignRight)
+        self.top_row.addWidget(self.btn_clear, 0, Qt.AlignRight | Qt.AlignVCenter)
 
-        # Botón Mapa Aleatorio (Abajo a la derecha, outline blanco, 40% transparencia)
+        main_layout.addLayout(self.top_row)
+        main_layout.addStretch(1)
+
+        # 2. Fila Inferior: Título en 2 líneas (Izq) vs Mapa Aleatorio (Der)
+        self.bottom_row = QHBoxLayout()
+        self.bottom_row.setContentsMargins(0, 0, 0, 0)
+        self.bottom_row.setSpacing(8)
+
+        left_name_box = QVBoxLayout()
+        left_name_box.setContentsMargins(0, 0, 0, 0)
+        left_name_box.setSpacing(1)
+
+        self.lbl_name = QLabel(self)
+        self.lbl_name.setWordWrap(True)
+        self.lbl_name.setMinimumHeight(44)
+        name_shadow = QGraphicsDropShadowEffect(self.lbl_name)
+        name_shadow.setColor(QColor(0, 0, 0, 240))
+        name_shadow.setBlurRadius(4)
+        name_shadow.setOffset(1, 1)
+        self.lbl_name.setGraphicsEffect(name_shadow)
+        left_name_box.addWidget(self.lbl_name, 0, Qt.AlignLeft | Qt.AlignVCenter)
+
+        self.lbl_subtitle = QLabel("Partida de Satara", self)
+        self.lbl_subtitle.hide()
+        left_name_box.addWidget(self.lbl_subtitle, 0, Qt.AlignLeft)
+
+        self.bottom_row.addLayout(left_name_box, 1)
+
         self.btn_reroll = QPushButton("🎲  Mapa Aleatorio", self)
-        self.btn_reroll.setToolTip("Sortear un mapa aleatorio del pool activo")
+        self.btn_reroll.setToolTip("Sortear un mapa aleatorio")
         self.btn_reroll.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_reroll.setFixedSize(130, 24)
         self.btn_reroll.setStyleSheet("""
             QPushButton {
-                font-size: 12px;
-                font-weight: 800;
-                padding: 6px 14px;
-                color: #FFFFFF;
-                background-color: rgba(16, 18, 24, 0.40);
-                border: 1px solid rgba(255, 255, 255, 0.35);
-                border-radius: 6px;
+                font-size: 11px; font-weight: 700; color: #CCD1DE;
+                background-color: rgba(23, 26, 34, 0.30);
+                border: 1px solid #2C303E; border-radius: 4px; padding: 2px 8px;
             }
-            QPushButton:hover {
-                background-color: rgba(30, 36, 48, 0.65);
-                border-color: #FFFFFF;
-            }
-            QPushButton:pressed {
-                background-color: rgba(15, 17, 24, 0.85);
-            }
+            QPushButton:hover { background-color: rgba(35, 39, 54, 0.55); border-color: #00B4FF; color: #FFFFFF; }
         """)
         self.btn_reroll.clicked.connect(self.reroll_requested.emit)
-        right_col.addWidget(self.btn_reroll, 0, Qt.AlignRight)
+        self.bottom_row.addWidget(self.btn_reroll, 0, Qt.AlignRight | Qt.AlignBottom)
 
-        main_layout.addLayout(right_col, 0)
+        main_layout.addLayout(self.bottom_row)
+        self.setFixedHeight(156)
 
-        # ------------------------------------------------------------------
-        # 2. Aura Mágica de la IA (Completamente Desacoplada, Centro Muerto)
-        # ------------------------------------------------------------------
-        self.hologram_widget = QWidget(self)
-        self.hologram_widget.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-        self.hologram_widget.setStyleSheet("background: transparent;")
-
-        holo_layout = QVBoxLayout(self.hologram_widget)
-        holo_layout.setContentsMargins(0, 0, 0, 0)
-        holo_layout.setSpacing(2)
-        holo_layout.setAlignment(Qt.AlignCenter)
-
-        self.lbl_holo_title = QLabel("◈ TRANSMISIÓN DE IA // PROTOCOLO SENTIENT", self.hologram_widget)
-        self.lbl_holo_title.setAlignment(Qt.AlignCenter)
-        self.lbl_holo_title.setStyleSheet("""
-            QLabel {
-                color: #61ab02;
-                font-size: 9.5px;
-                font-weight: 900;
-                letter-spacing: 1px;
-                background-color: rgba(10, 18, 12, 0.85);
-                border-radius: 4px;
-                padding: 3px 10px;
-                border: none;
-            }
-        """)
-        holo_layout.addWidget(self.lbl_holo_title)
-
-        self.lbl_hologram = QLabel(self.hologram_widget)
-        self.lbl_hologram.setAlignment(Qt.AlignCenter)
-        self.lbl_hologram.setWordWrap(True)
-        self.lbl_hologram.setStyleSheet("""
-            QLabel {
-                color: #D4FF88;
-                font-size: 14px;
-                font-weight: 800;
-                letter-spacing: 0.2px;
-                background-color: rgba(12, 24, 14, 0.82);
-                border-radius: 10px;
-                padding: 7px 18px;
-                border: none;
-            }
-        """)
-        holo_layout.addWidget(self.lbl_hologram)
-
-        # Glow mágico esmeralda difuso
-        glow = QGraphicsDropShadowEffect(self.hologram_widget)
-        glow.setColor(QColor("#61ab02"))
-        glow.setBlurRadius(34)
-        glow.setOffset(0, 0)
-        self.hologram_widget.setGraphicsEffect(glow)
-
-        self._holo_opacity = QGraphicsOpacityEffect(self.hologram_widget)
-        self.hologram_widget.setGraphicsEffect(self._holo_opacity)
-        self._holo_opacity.setOpacity(0.0)
-        self.hologram_widget.hide()
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self._reposition_hologram()
-
-    def _reposition_hologram(self):
-        if hasattr(self, "hologram_widget"):
-            # Ancho dinámico pero acotado para no colisionar con esquinas
-            max_w = min(580, max(280, self.width() - 360))
-            self.hologram_widget.setMaximumWidth(max_w)
-            self.hologram_widget.adjustSize()
-
-            # Centro exacto matemático absoluto del banner (cero vibración / cero saltos)
-            hw = self.hologram_widget.width()
-            hh = self.hologram_widget.height()
-            target_x = (self.width() - hw) // 2
-            target_y = (self.height() - hh) // 2
-            self.hologram_widget.move(target_x, target_y)
-            self.hologram_widget.raise_()
-
-    def show_transmission(self, message: str, duration_ms: int = 6000):
-        """Displays magical emerald AI aura text (6.0s duration) positioned at exact center."""
-        if not hasattr(self, "hologram_widget"):
-            return
-
-        clean_msg = message.replace("🤖 [Sistema]:", "").replace("◈", "").strip()
-        self.lbl_hologram.setText(clean_msg)
-        self._reposition_hologram()
-        self.hologram_widget.show()
-        self.hologram_widget.raise_()
-
-        anim_in = QPropertyAnimation(self._holo_opacity, b"opacity", self.hologram_widget)
-        anim_in.setDuration(220)
-        anim_in.setStartValue(self._holo_opacity.opacity())
-        anim_in.setEndValue(1.0)
-        anim_in.setEasingCurve(QEasingCurve.Type.OutCubic)
-        anim_in.start()
-
-        def _fade_out():
-            anim_out = QPropertyAnimation(self._holo_opacity, b"opacity", self.hologram_widget)
-            anim_out.setDuration(400)
-            anim_out.setStartValue(1.0)
-            anim_out.setEndValue(0.0)
-            anim_out.setEasingCurve(QEasingCurve.Type.InQuad)
-            anim_out.finished.connect(self.hologram_widget.hide)
-            anim_out.start()
-
-        QTimer.singleShot(duration_ms, _fade_out)
+    def show_transmission(self, quote: str):
+        pass
 
     def set_map(self, map_obj: Map | None):
         self._map_obj = map_obj
         self._raw_pixmap = None
         if map_obj is not None:
-            # Caché Full-HD nativa en memoria RAM (nitidez 1080p absoluta a 0ms)
             if map_obj.name in _PANORAMA_CACHE:
                 self._raw_pixmap = _PANORAMA_CACHE[map_obj.name]
             else:
@@ -301,12 +140,22 @@ class MatchMapBanner(QFrame):
         return self._map_obj
 
     def _update_display(self):
+        t = theme.tokens()
+        font_name = t.font_family
+
         if self._map_obj is None:
             self.lbl_mode.setVisible(False)
-            self.lbl_name.setText("🗺️ Sin mapa asignado")
-            self.lbl_name.setStyleSheet("font-size: 18px; font-weight: 800; color: #E0E0E0; background: transparent;")
-            self.lbl_subtitle.setText("Sortea un mapa aleatorio o elígelo desde la pestaña 'Mapas'.")
-            self.lbl_subtitle.setVisible(True)
+            self.lbl_name.setText("MAPA ALEATORIO")
+            self.lbl_name.setStyleSheet(f"""
+                QLabel {{
+                    font-family: {font_name};
+                    font-size: 16px;
+                    font-weight: 900;
+                    color: #E2E8F0;
+                    background: transparent;
+                    line-height: 1.15;
+                }}
+            """)
         else:
             mode = self._map_obj.mode
             mode_color = MODE_COLORS.get(mode, "#6B7280")
@@ -314,28 +163,32 @@ class MatchMapBanner(QFrame):
             self.lbl_mode.setStyleSheet(f"""
                 QLabel {{
                     font-size: 10px;
-                    font-weight: 800;
-                    padding: 2px 7px;
-                    border-radius: 4px;
-                    color: {mode_color};
-                    background-color: rgba(255, 255, 255, 0.08);
+                    font-weight: 900;
+                    padding: 2px 8px;
                     border: 1px solid {mode_color};
+                    border-radius: 3px;
+                    color: {mode_color};
+                    background: transparent;
+                    background-color: transparent;
                 }}
             """)
             self.lbl_mode.setVisible(True)
+
             m_name = self._map_obj.name.upper()
-            f_size = "22px" if len(m_name) > 18 else "26px"
+            f_size = "16px" if len(m_name) > 12 else "18px"
             self.lbl_name.setText(m_name)
             self.lbl_name.setStyleSheet(f"""
                 QLabel {{
+                    font-family: {font_name};
                     font-size: {f_size};
                     font-weight: 900;
                     color: #FFFFFF;
                     background: transparent;
                     letter-spacing: 0.5px;
+                    line-height: 1.15;
+                    padding: 2px 0px;
                 }}
             """)
-            self.lbl_subtitle.setVisible(False)
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -344,7 +197,7 @@ class MatchMapBanner(QFrame):
 
         w = self.width()
         h = self.height()
-        radius = 10.0
+        radius = 4.0
 
         clip_path = QPainterPath()
         clip_path.addRoundedRect(0, 0, w, h, radius, radius)
@@ -360,29 +213,13 @@ class MatchMapBanner(QFrame):
             crop_y = max(0, (scaled.height() - h) // 2)
             painter.drawPixmap(0, 0, scaled, crop_x, crop_y, w, h)
         else:
-            painter.fillRect(0, 0, w, h, QColor("#14151B"))
+            painter.fillRect(0, 0, w, h, QColor("#0E1624"))
 
         vert_grad = QLinearGradient(0, 0, 0, h)
-        vert_grad.setColorAt(0.0, QColor(0, 0, 0, 0))
-        vert_grad.setColorAt(0.40, QColor(0, 0, 0, 25))
-        vert_grad.setColorAt(0.75, QColor(8, 9, 14, 140))
-        vert_grad.setColorAt(1.0, QColor(6, 7, 10, 200))
+        vert_grad.setColorAt(0.0, QColor(0, 0, 0, 50))
+        vert_grad.setColorAt(0.40, QColor(6, 10, 18, 120))
+        vert_grad.setColorAt(1.0, QColor(4, 7, 14, 225))
         painter.fillRect(0, 0, w, h, vert_grad)
 
-        horiz_grad = QLinearGradient(0, 0, w, 0)
-        horiz_grad.setColorAt(0.0, QColor(8, 9, 14, 160))
-        horiz_grad.setColorAt(0.35, QColor(10, 11, 16, 80))
-        horiz_grad.setColorAt(0.70, QColor(12, 13, 18, 20))
-        horiz_grad.setColorAt(1.0, QColor(14, 15, 20, 0))
-        painter.fillRect(0, 0, w, h, horiz_grad)
-
-        painter.setClipping(False)
-        pen_color = QColor(theme.accent()) if self._map_obj else QColor("#282B36")
-        pen_width = 1.0
-        pen = QPen(pen_color, pen_width)
-        painter.setPen(pen)
-        painter.setBrush(Qt.NoBrush)
-        painter.drawRoundedRect(pen_width / 2.0, pen_width / 2.0, w - pen_width, h - pen_width, radius, radius)
         painter.end()
-
         super().paintEvent(event)

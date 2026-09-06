@@ -49,6 +49,12 @@ def show_slot_context_menu(slot: PlayerSlotWidget, global_pos):
 
     menu.addSeparator()
 
+    act_vip = QAction("👑 Prioridad Streamer (Garantizar Partida)", slot)
+    act_vip.setCheckable(True)
+    act_vip.setChecked(getattr(player, "is_vip", False))
+    act_vip.triggered.connect(lambda checked: toggle_slot_vip(slot, checked))
+    menu.addAction(act_vip)
+
     if player.is_fixed:
         act = QAction(f"Desfijar de Equipo {player.fixed_team}", slot)
         act.triggered.connect(lambda: slot.slot_fixed_changed.emit(None))
@@ -149,3 +155,14 @@ def reset_slot_player_mmr(slot: PlayerSlotWidget):
     p_win = slot.window()
     if hasattr(p_win, "show_toast"):
         p_win.show_toast(f"⚡ MMR de {slot._player.name} restablecido a 5", "info")
+
+
+def toggle_slot_vip(slot: PlayerSlotWidget, is_vip: bool):
+    if slot._player is None:
+        return
+    p_win = slot.window()
+    if hasattr(p_win, "roster_controller"):
+        p_win.roster_controller.set_global_player_vip(slot._player.name, is_vip)
+    else:
+        slot._player.is_vip = is_vip
+        slot.set_player(slot._player, slot._saved, slot._show_roles, slot._show_mmr)

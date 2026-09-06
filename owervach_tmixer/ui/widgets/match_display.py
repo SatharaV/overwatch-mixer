@@ -25,8 +25,6 @@ if TYPE_CHECKING:
 
 
 class ResetVectorBtn(QPushButton):
-    """Crisp vector reset circular arrow via QPainter (independent of system fonts)."""
-
     def __init__(self, tooltip: str = "", parent: QWidget | None = None):
         super().__init__(parent)
         self.setFixedSize(28, 26)
@@ -56,7 +54,6 @@ class ResetVectorBtn(QPushButton):
         cx = self.width() // 2
         cy = self.height() // 2
 
-        # Draw circular reset arrow
         painter.setPen(QPen(icon_col, 1.8, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawArc(cx - 6, cy - 6, 12, 12, 45 * 16, 275 * 16)
@@ -69,8 +66,6 @@ class ResetVectorBtn(QPushButton):
 
 
 class MatchDisplayWidget(QWidget):
-    """Match tab: dual team slot panels, map banner, instant winner selector, and action buttons."""
-
     map_updated = Signal(object, object)
     generate_match = Signal()
     reroll_map = Signal()
@@ -78,7 +73,7 @@ class MatchDisplayWidget(QWidget):
     copy_to_discord_done = Signal()
     copy_to_discord_empty = Signal()
     clear_all_requested = Signal()
-    winner_declared = Signal(object)  # 1 for Team 1, 2 for Team 2, 0 for Draw, None for Unset
+    winner_declared = Signal(object)
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -114,10 +109,10 @@ class MatchDisplayWidget(QWidget):
         line_top.setStyleSheet("background-color: #2B2B2B; max-width: 1px;")
         vs_layout.addWidget(line_top, 1, Qt.AlignHCenter)
 
-        vs_badge = QLabel("VS", vs_container)
-        vs_badge.setAlignment(Qt.AlignCenter)
-        vs_badge.setFixedSize(34, 34)
-        vs_badge.setStyleSheet("""
+        self.vs_badge = QLabel("VS", vs_container)
+        self.vs_badge.setAlignment(Qt.AlignCenter)
+        self.vs_badge.setFixedSize(34, 34)
+        self.vs_badge.setStyleSheet("""
             QLabel {
                 font-size: 12px;
                 font-weight: 800;
@@ -127,7 +122,7 @@ class MatchDisplayWidget(QWidget):
                 border-radius: 17px;
             }
         """)
-        vs_layout.addWidget(vs_badge, 0, Qt.AlignCenter)
+        vs_layout.addWidget(self.vs_badge, 0, Qt.AlignCenter)
 
         line_bottom = QFrame(vs_container)
         line_bottom.setFrameShape(QFrame.VLine)
@@ -142,15 +137,18 @@ class MatchDisplayWidget(QWidget):
 
         layout.addLayout(teams_layout, 5)
 
-        # 2. Panoramic Map Banner
+        # 2. Contenedor Intermedio (Aloja el banner de mapa horizontalmente)
+        self._dock_container = QWidget(self)
+        self._dock_layout = QVBoxLayout(self._dock_container)
+        self._dock_layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._dock_container, 2)
+
         self.map_banner = MatchMapBanner()
         self.map_banner.reroll_requested.connect(self.reroll_map.emit)
         self.map_banner.clear_requested.connect(self.clear_map.emit)
-        self.map_banner.setMinimumHeight(110)
-        self.map_banner.setMaximumHeight(210)
-        layout.addWidget(self.map_banner, 2)
+        self._dock_layout.addWidget(self.map_banner)
 
-        # 3. Live Esports Winner Scoreboard Selector
+        # 3. Marcador de Resultado
         self.winner_bar = QFrame(self)
         self.winner_bar.setFixedHeight(38)
         self.winner_bar.setStyleSheet("""
@@ -192,80 +190,123 @@ class MatchDisplayWidget(QWidget):
 
         layout.addWidget(self.winner_bar)
 
-        # 4. Action Buttons (Mezclar + Discord + Vaciar Todo)
+        # 4. Tríada de Botones de Acción: Mismo alto (46px), esquinas de 8px y outline de 1px
         actions = QHBoxLayout()
         actions.setSpacing(12)
 
         self.btn_generate = QPushButton("🔀  MEZCLAR PARTIDA")
         self.btn_generate.setObjectName("btnGenerate")
-        self.btn_generate.setMinimumHeight(46)
+        self.btn_generate.setFixedHeight(46)
         self.btn_generate.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_generate.setToolTip("Mezclar jugadores en los equipos (Ctrl + Enter)")
         self.btn_generate.clicked.connect(self.generate_match.emit)
+        self.btn_generate.setStyleSheet("""
+            QPushButton#btnGenerate {
+                font-size: 13px;
+                font-weight: 800;
+                color: #A4E062;
+                background-color: rgba(97, 171, 2, 0.08);
+                border: 1px solid #61ab02;
+                border-radius: 8px;
+                letter-spacing: 0.5px;
+                padding: 6px 16px;
+            }
+            QPushButton#btnGenerate:hover {
+                background-color: rgba(97, 171, 2, 0.22);
+                border-color: #A4E062;
+                color: #FFFFFF;
+            }
+            QPushButton#btnGenerate:pressed {
+                background-color: rgba(97, 171, 2, 0.35);
+            }
+        """)
         actions.addWidget(self.btn_generate, 4)
 
         self.btn_copy_discord = QPushButton("📋  COPIAR ALINEACIÓN")
         self.btn_copy_discord.setObjectName("btnCopyDiscord")
-        self.btn_copy_discord.setMinimumHeight(46)
+        self.btn_copy_discord.setFixedHeight(46)
         self.btn_copy_discord.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_copy_discord.setToolTip("Copiar alineación formateada para Discord")
+        self.btn_copy_discord.clicked.connect(self._copy_for_discord)
         self.btn_copy_discord.setStyleSheet("""
             QPushButton#btnCopyDiscord {
-                font-size: 13px;
+                font-size: 12px;
                 font-weight: 800;
-                color: #B5C0FF;
-                background-color: rgba(22, 24, 34, 0.85);
+                color: #9B82FC;
+                background-color: rgba(88, 101, 242, 0.08);
                 border: 1px solid #5865F2;
                 border-radius: 8px;
+                letter-spacing: 0.3px;
                 padding: 6px 16px;
             }
             QPushButton#btnCopyDiscord:hover {
-                background-color: rgba(88, 101, 242, 0.16);
-                border-color: #7983F5;
+                background-color: rgba(88, 101, 242, 0.25);
+                border-color: #A594FD;
                 color: #FFFFFF;
             }
             QPushButton#btnCopyDiscord:pressed {
-                background-color: rgba(88, 101, 242, 0.28);
+                background-color: rgba(88, 101, 242, 0.40);
             }
         """)
-        self.btn_copy_discord.setToolTip("Copiar alineación formateada para Discord")
-        self.btn_copy_discord.clicked.connect(self._copy_for_discord)
         actions.addWidget(self.btn_copy_discord, 2)
 
         self.btn_clear_all = QPushButton("🗑️  VACIAR TODO")
         self.btn_clear_all.setObjectName("btnClearAll")
-        self.btn_clear_all.setMinimumHeight(46)
+        self.btn_clear_all.setFixedHeight(46)
         self.btn_clear_all.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_clear_all.setToolTip("Vaciar ambos equipos y la zona de espera de un solo toque")
+        self.btn_clear_all.clicked.connect(self.clear_all_requested.emit)
         self.btn_clear_all.setStyleSheet("""
             QPushButton#btnClearAll {
                 font-size: 12px;
                 font-weight: 800;
                 color: #FF8B8B;
                 background-color: rgba(26, 20, 24, 0.85);
-                border: 1px solid #5A262C;
+                border: 1px solid #6E222B;
                 border-radius: 8px;
                 letter-spacing: 0.3px;
-                padding: 6px 12px;
+                padding: 6px 14px;
             }
             QPushButton#btnClearAll:hover {
-                background-color: rgba(255, 68, 68, 0.18);
+                background-color: rgba(255, 68, 68, 0.22);
                 border-color: #FF4444;
                 color: #FFFFFF;
             }
             QPushButton#btnClearAll:pressed {
-                background-color: rgba(255, 68, 68, 0.32);
+                background-color: rgba(255, 68, 68, 0.35);
             }
         """)
-        self.btn_clear_all.setToolTip("Vaciar ambos equipos y la zona de espera de un solo toque")
-        self.btn_clear_all.clicked.connect(self.clear_all_requested.emit)
         actions.addWidget(self.btn_clear_all, 1)
 
         layout.addLayout(actions)
         self.apply_theme()
 
+    def clear_middle(self):
+        pass
+
+    def embed_map_banner(self, banner: QWidget):
+        if hasattr(self, "_dock_layout"):
+            if self._dock_layout.indexOf(banner) == -1:
+                self._dock_layout.addWidget(banner)
+        banner.show()
+
+    def embed_bench_dock(self, dock: QWidget):
+        pass
+
+    def embed_bench_panel(self, bench_panel: QWidget):
+        pass
+
+    def restore_bench_panel(self, bench_panel: QWidget):
+        pass
+
+    def restore_map_banner(self):
+        self.embed_map_banner(self.map_banner)
+
     def _update_winner_button_labels(self):
         t1_name = self.team1_widget.get_team_name()
         t2_name = self.team2_widget.get_team_name()
         self.btn_win_t1.setText(f"🏆 Victoria {t1_name}")
+        self.btn_draw.setText("⚖️ Empate")
         self.btn_win_t2.setText(f"🏆 Victoria {t2_name}")
         self._refresh_winner_styles()
 
@@ -288,7 +329,6 @@ class MatchDisplayWidget(QWidget):
         self.btn_draw.setChecked(w == 0)
         self.btn_win_t2.setChecked(w == 2)
 
-        # Team 1 (Cyan Blue #00B4FF)
         if w == 1:
             self.btn_win_t1.setStyleSheet("""
                 QPushButton {
@@ -307,7 +347,6 @@ class MatchDisplayWidget(QWidget):
                 QPushButton:hover { background-color: #1E2938; border-color: #00B4FF; color: #FFFFFF; }
             """)
 
-        # Draw (Slate Grey #8E94A0)
         if w == 0:
             self.btn_draw.setStyleSheet("""
                 QPushButton {
@@ -326,7 +365,6 @@ class MatchDisplayWidget(QWidget):
                 QPushButton:hover { background-color: #272B38; color: #FFFFFF; }
             """)
 
-        # Team 2 (Coral Red #FF4444)
         if w == 2:
             self.btn_win_t2.setStyleSheet("""
                 QPushButton {
@@ -454,31 +492,9 @@ class MatchDisplayWidget(QWidget):
         self.team2_widget.set_show_mmr(show)
 
     def apply_theme(self):
-        accent = theme.accent()
         self.team1_widget.apply_theme()
         self.team2_widget.apply_theme()
         self._update_winner_button_labels()
-
-        self.btn_generate.setStyleSheet(f"""
-            QPushButton#btnGenerate {{
-                font-size: 14px;
-                font-weight: 900;
-                color: {accent};
-                background-color: rgba(20, 22, 30, 0.88);
-                border: 1px solid {accent};
-                border-radius: 8px;
-                letter-spacing: 0.5px;
-                padding: 6px 16px;
-            }}
-            QPushButton#btnGenerate:hover {{
-                background-color: {theme.accent_rgba(0.16)};
-                border-color: {theme.accent_light()};
-                color: #FFFFFF;
-            }}
-            QPushButton#btnGenerate:pressed {{
-                background-color: {theme.accent_rgba(0.28)};
-            }}
-        """)
         self.map_banner.update()
         if hasattr(self, "btn_reset_winner"):
             self.btn_reset_winner.update()

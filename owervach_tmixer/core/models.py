@@ -93,6 +93,9 @@ class Player:
     wins: int = 0
     losses: int = 0
     draws: int = 0
+    is_vip: bool = False
+    streak_played: int = 0
+    streak_benched: int = 0
 
     _DECOR_TOKENS = ("⭐", "🔒", "🛡️", "⚔️", "❤️")
     _ROLE_WORDS = {"tank", "damage", "support"}
@@ -129,6 +132,8 @@ class Player:
         self.wins = 0
         self.losses = 0
         self.draws = 0
+        self.streak_played = 0
+        self.streak_benched = 0
 
     def get_mmr_for_role(self, role: Role | str | None = None) -> float | int:
         """Returns the effective rating (Calibrated by IA if enabled, or Manual Prior)."""
@@ -192,6 +197,9 @@ class Player:
             "wins": getattr(self, "wins", 0),
             "losses": getattr(self, "losses", 0),
             "draws": getattr(self, "draws", 0),
+            "is_vip": getattr(self, "is_vip", False),
+            "streak_played": getattr(self, "streak_played", 0),
+            "streak_benched": getattr(self, "streak_benched", 0),
         }
 
     @classmethod
@@ -216,6 +224,9 @@ class Player:
             wins=data.get("wins", 0),
             losses=data.get("losses", 0),
             draws=data.get("draws", 0),
+            is_vip=data.get("is_vip", False),
+            streak_played=data.get("streak_played", 0),
+            streak_benched=data.get("streak_benched", 0),
         )
 
 
@@ -322,6 +333,7 @@ class MatchSettings:
     vsync: bool = True
     slot_font_size: int = 15
     window_geometry: dict = field(default_factory=dict)
+    window_geometries: dict[str, dict] = field(default_factory=dict)
     shuffle_mode: ShuffleMode = ShuffleMode.MAX_VARIETY
     diversity_candidates: int = 50
     history_size: int = 10
@@ -346,6 +358,7 @@ class MatchSettings:
     bans_visible_rows: int = 3
     dnd_cross_team_swap: bool = True
     accent_color: str = "#61ab02"
+    theme_name: str = "obsidian"
     map_card_size: str = "medium"
     map_card_aspect: str = "auto"
     saved_panel_expanded: bool = True
@@ -364,11 +377,18 @@ class MatchSettings:
     tier_player_width: int = 125
     tier_player_height: int = 75
     tier_export_ratio: str = '16:9'
+    tier_show_watermark_export: bool = True
+    tier_show_watermark_ui: bool = True
     last_selected_map: dict | None = None
     category_value_orders: dict[str, list[str]] = field(default_factory=dict)
     settings_tab_order: list[str] = field(default_factory=lambda: [
         "appearance", "content", "shuffle", "roles_bans", "maps", "players", "backup", "about", "about"
     ])
+    bench_rotation_enabled: bool = False
+    streamer_rest_interval: int = 0
+    rotation_policy: str = "continuous"
+    rotation_batch_size: int = 2
+    min_matches_shield: int = 2
 
     def composition_for_mode(self) -> TeamComposition:
         if self.game_mode == GameMode.FIVE_V_FIVE:
@@ -404,6 +424,7 @@ class MatchSettings:
             "bans_visible_rows": getattr(self, "bans_visible_rows", 2),
             "dnd_cross_team_swap": self.dnd_cross_team_swap,
             "accent_color": self.accent_color,
+            "theme_name": getattr(self, "theme_name", "obsidian"),
             "saved_panel_expanded": self.saved_panel_expanded,
             "bans_panel_expanded": self.bans_panel_expanded,
             "slot_font_size": self.slot_font_size,
@@ -419,13 +440,21 @@ class MatchSettings:
             "tier_player_width": self.tier_player_width,
             "tier_player_height": self.tier_player_height,
             "tier_export_ratio": getattr(self, "tier_export_ratio", "16:9"),
+            "tier_show_watermark_export": getattr(self, "tier_show_watermark_export", True),
+            "tier_show_watermark_ui": getattr(self, "tier_show_watermark_ui", True),
             "last_selected_map": self.last_selected_map,
             "category_value_orders": self.category_value_orders,
             "settings_tab_order": self.settings_tab_order,
             "window_geometry": getattr(self, "window_geometry", {}),
+            "window_geometries": getattr(self, "window_geometries", {}),
             "team1_color": getattr(self, "team1_color", "#00B4FF"),
             "team2_color": getattr(self, "team2_color", "#FF4444"),
             "vsync": getattr(self, "vsync", True),
+            "bench_rotation_enabled": getattr(self, "bench_rotation_enabled", False),
+            "streamer_rest_interval": getattr(self, "streamer_rest_interval", 0),
+            "rotation_policy": getattr(self, "rotation_policy", "continuous"),
+            "rotation_batch_size": getattr(self, "rotation_batch_size", 2),
+            "min_matches_shield": getattr(self, "min_matches_shield", 2),
         }
 
     @classmethod
@@ -460,6 +489,7 @@ class MatchSettings:
             bans_visible_rows=data.get("bans_visible_rows", 3),
             dnd_cross_team_swap=data.get("dnd_cross_team_swap", True),
             accent_color=data.get("accent_color", "#61ab02"),
+            theme_name=data.get("theme_name", "obsidian"),
             map_card_size=data.get("map_card_size", "medium"),
             map_card_aspect=data.get("map_card_aspect", "auto"),
             saved_panel_expanded=data.get("saved_panel_expanded", True),
@@ -477,13 +507,21 @@ class MatchSettings:
             tier_player_width=data.get("tier_player_width", 125),
             tier_player_height=data.get("tier_player_height", 75),
             tier_export_ratio=data.get("tier_export_ratio", "16:9"),
+            tier_show_watermark_export=data.get("tier_show_watermark_export", True),
+            tier_show_watermark_ui=data.get("tier_show_watermark_ui", True),
             last_selected_map=data.get("last_selected_map"),
             category_value_orders=data.get("category_value_orders", {}),
             settings_tab_order=data.get("settings_tab_order", ["appearance", "content", "shuffle", "roles_bans", "maps", "players", "backup", "about", "about"]),
             window_geometry=data.get("window_geometry", {}),
+            window_geometries=data.get("window_geometries", {}),
             team1_color=data.get("team1_color", "#00B4FF"),
             team2_color=data.get("team2_color", "#FF4444"),
             vsync=data.get("vsync", True),
+            bench_rotation_enabled=data.get("bench_rotation_enabled", False),
+            streamer_rest_interval=data.get("streamer_rest_interval", 0),
+            rotation_policy=data.get("rotation_policy", "continuous"),
+            rotation_batch_size=data.get("rotation_batch_size", 2),
+            min_matches_shield=data.get("min_matches_shield", 2),
         )
 
 

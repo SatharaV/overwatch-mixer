@@ -1,9 +1,9 @@
-"""Inline-editable player slot card with true-center/left names, borderless micro-badges, and clean drag lifecycle."""
+"""Inline-editable player slot card with true-center/left names, SVG role badges, and clean drag lifecycle."""
 
 from __future__ import annotations
 
-from PySide6.QtCore import QPoint, Qt, Signal
-from PySide6.QtGui import QColor, QDrag, QFont, QFontMetrics
+from PySide6.QtCore import QPoint, QRect, Qt, Signal
+from PySide6.QtGui import QColor, QDrag, QFont, QFontMetrics, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QFrame,
     QGraphicsDropShadowEffect,
@@ -21,6 +21,7 @@ from owervach_tmixer.core.special_player import (
     is_special_player_name,
 )
 from owervach_tmixer.ui.styles import theme
+from owervach_tmixer.utils import get_resource_path
 from .dnd import (
     clear_all_drop_highlights,
     make_payload,
@@ -39,6 +40,48 @@ ROLE_BG = {
     Role.DAMAGE: "rgba(255, 68, 68, 0.16)",
     Role.SUPPORT: "rgba(255, 215, 0, 0.16)",
 }
+
+_ROLE_PIXMAP_CACHE: dict[tuple[Role, int, str], QPixmap] = {}
+
+
+def _get_role_svg_pixmap(role: Role, size: int = 16, color_hex: str = "#FFFFFF") -> QPixmap:
+    """Renders and caches crisp vector role icons from assets SVGs."""
+    cache_key = (role, size, color_hex)
+    if cache_key in _ROLE_PIXMAP_CACHE:
+        return _ROLE_PIXMAP_CACHE[cache_key]
+
+    file_map = {
+        Role.TANK: "assets/role_tank.svg",
+        Role.DAMAGE: "assets/role_damage.svg",
+        Role.SUPPORT: "assets/role_support.svg",
+    }
+    svg_path = get_resource_path(file_map.get(role, ""))
+    if not svg_path.exists():
+        return QPixmap()
+
+    try:
+        from PySide6.QtSvg import QSvgRenderer
+        renderer = QSvgRenderer(str(svg_path))
+        base_pix = QPixmap(size, size)
+        base_pix.fill(Qt.transparent)
+        p = QPainter(base_pix)
+        renderer.render(p)
+        p.end()
+
+        # Tinting pass
+        tinted = QPixmap(size, size)
+        tinted.fill(Qt.transparent)
+        tp = QPainter(tinted)
+        tp.setCompositionMode(QPainter.CompositionMode_Source)
+        tp.drawPixmap(0, 0, base_pix)
+        tp.setCompositionMode(QPainter.CompositionMode_SourceIn)
+        tp.fillRect(tinted.rect(), QColor(color_hex))
+        tp.end()
+
+        _ROLE_PIXMAP_CACHE[cache_key] = tinted
+        return tinted
+    except Exception:
+        return QPixmap()
 
 
 class _NameEdit(QLineEdit):
@@ -108,7 +151,7 @@ class PlayerSlotWidget(QFrame):
         self._suppress = False
         self._drag_pos: QPoint | None = None
         self._font_size = 15
-        
+
         self._font_weight = "bold"
         self._text_align = "center"
         self._dynamic_font = True
@@ -118,10 +161,10 @@ class PlayerSlotWidget(QFrame):
         self.setObjectName("playerSlot")
         self.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setMinimumHeight(28)
-        self.setMaximumHeight(72)
+        # Mayor altura para permitir una tipografía descansada y legible
+        self.setMinimumHeight(36)
+        self.setMaximumHeight(74)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setAcceptDrops(True)
         register_slot(self)
 
@@ -132,7 +175,7 @@ class PlayerSlotWidget(QFrame):
         self._layout.setContentsMargins(10, 4, 10, 4)
         self._layout.setSpacing(6)
 
-        # 1. Left Wing (MMR + Badges)
+        # 1. Left Wing (MMR + Badges) - 76px Zero-Shift
         self.left_wing = QWidget(self)
         self.left_wing.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self.left_layout = QHBoxLayout(self.left_wing)
@@ -154,17 +197,17 @@ class PlayerSlotWidget(QFrame):
         # 2. Name Editor
         self._editor = _NameEdit(self)
         self._editor.setObjectName("playerSlotEditor")
-        self._editor.setPlaceholderText("➕")
+        self._editor.setPlaceholderText(theme.tokens().slot_empty_text)
         self._editor.setClearButtonEnabled(False)
         self._editor.setProperty("transparent", True)
         font = QFont()
-        font.setPointSize(12)
-        font.setWeight(QFont.Weight.Medium)
+        font.setPointSize(14)
+        font.setWeight(QFont.Weight.Bold)
         self._editor.setFont(font)
         self._editor.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._layout.addWidget(self._editor, 1, Qt.AlignVCenter)
 
-        # 3. Right Wing (Role Badge)
+        # 3. Right Wing (Role Badge) - 76px Zero-Shift
         self.right_wing = QWidget(self)
         self.right_wing.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self.right_layout = QHBoxLayout(self.right_wing)
@@ -234,7 +277,7 @@ class PlayerSlotWidget(QFrame):
                 self._editor.clear()
                 self._editor.setReadOnly(False)
                 self._editor.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-                self._editor.setPlaceholderText("➕")
+                self._editor.setPlaceholderText(theme.tokens().slot_empty_text)
                 self.lbl_mmr_badge.hide()
                 self.lbl_icons.hide()
                 self.lbl_role_badge.hide()
@@ -257,7 +300,7 @@ class PlayerSlotWidget(QFrame):
                     bg_css = "rgba(255, 170, 0, 0.12)" if use_outline else "rgba(255, 170, 0, 0.16)"
                     self.lbl_mmr_badge.setStyleSheet(f"""
                         QLabel {{
-                            font-size: 9.5px; font-weight: 900; color: #FFAA00;
+                            font-size: 10px; font-weight: 900; color: #FFAA00;
                             background-color: {bg_css};
                             {border_css}
                             border-radius: 5px; padding: 0px 4px;
@@ -268,6 +311,10 @@ class PlayerSlotWidget(QFrame):
                     self.lbl_mmr_badge.hide()
 
                 icons = []
+                if is_special_player_name(player.name):
+                    icons.append("⚜️")
+                if getattr(player, "is_vip", False):
+                    icons.append("👑")
                 if saved:
                     icons.append("⭐")
                 if player.fixed_team:
@@ -277,75 +324,88 @@ class PlayerSlotWidget(QFrame):
                 self.lbl_icons.setText(icon_str)
                 self.lbl_icons.setStyleSheet("font-size: 11px; color: #E2E6F0; background: transparent; border: none;")
 
+                width_needed = max(18, 14 * len(icons) + 4)
                 if getattr(self, "_text_align", "center") == "left":
-                    # Reserva de espacio fija de 26px para mantener la columna simétrica
-                    self.lbl_icons.setFixedWidth(36 if len(icons) > 1 else 26)
+                    self.lbl_icons.setFixedWidth(max(26, width_needed))
                     self.lbl_icons.setFixedHeight(22)
                     self.lbl_icons.show()
                 else:
                     if icons:
-                        self.lbl_icons.setFixedWidth(34 if len(icons) > 1 else 18)
+                        self.lbl_icons.setFixedWidth(width_needed)
                         self.lbl_icons.setFixedHeight(18)
                         self.lbl_icons.show()
                     else:
                         self.lbl_icons.hide()
 
-                if show_roles and player.role:
-                    r_color = ROLE_COLOR.get(player.role, "#AAA")
-                    r_bg = ROLE_BG.get(player.role, "rgba(255, 255, 255, 0.08)")
-                    r_emoji = ROLE_EMOJI.get(player.role, "")
-
-                    style = getattr(self, "_role_badge_style", "emoji")
-                    if style == "emoji":
-                        badge_txt = r_emoji
-                        self.lbl_role_badge.setFixedWidth(24)
-                        b_padding = "0px 2px"
-                    elif style == "initial":
-                        badge_txt = f"{r_emoji} {player.role.value[0].upper()}"
-                        self.lbl_role_badge.setFixedWidth(34)
-                        b_padding = "0px 3px"
-                    else:  # "full"
-                        badge_txt = f"{r_emoji} {player.role.value.upper()}"
-                        self.lbl_role_badge.setMinimumWidth(56)
-                        self.lbl_role_badge.setMaximumWidth(78)
-                        b_padding = "0px 5px"
-
-                    self.lbl_role_badge.setText(badge_txt)
-                    self.lbl_role_badge.setAlignment(Qt.AlignCenter)
-                    if style == "emoji":
-                        self.lbl_role_badge.setFixedSize(26, 22)
-                        font_px = "12px"
-                        pad_px = "0px"
-                    elif style == "initial":
-                        self.lbl_role_badge.setFixedHeight(22)
-                        self.lbl_role_badge.setMinimumWidth(36)
-                        font_px = "10px"
-                        pad_px = "0px 4px"
-                    else:
-                        self.lbl_role_badge.setFixedHeight(22)
-                        self.lbl_role_badge.setMinimumWidth(62)
-                        font_px = "9.5px"
-                        pad_px = "0px 6px"
-
-                    use_outline = getattr(self, "_badge_outlines", False)
-                    border_css = f"border: 1px solid {r_color};" if use_outline else "border: none;"
-                    self.lbl_role_badge.setStyleSheet(f"""
-                        QLabel {{
-                            font-size: {font_px}; font-weight: 900; color: {r_color};
-                            background-color: {r_bg};
-                            {border_css}
-                            border-radius: 5px; padding: {pad_px};
-                        }}
-                    """)
-                    self.lbl_role_badge.show()
-                else:
-                    self.lbl_role_badge.hide()
-
+                self._refresh_role_badge(player)
                 self._decor.setText(_indicators(player, self._saved, self._show_roles, self._show_mmr))
         finally:
             self._suppress = False
         self._apply_alignment_layout()
         self._apply_style()
+
+    def _refresh_role_badge(self, player: Player):
+        if not (self._show_roles and player.role):
+            self.lbl_role_badge.hide()
+            return
+
+        t = theme.tokens()
+        r_color = ROLE_COLOR.get(player.role, "#AAA")
+        r_bg = ROLE_BG.get(player.role, "rgba(255, 255, 255, 0.08)")
+        r_emoji = ROLE_EMOJI.get(player.role, "")
+        style = getattr(self, "_role_badge_style", "emoji")
+
+        # Renderizado vectorial SVG (prioritario si el tema usa franja lateral o el usuario pide SVG)
+        if (t.slot_side_stripe and style == "emoji") or style == "svg":
+            svg_pix = _get_role_svg_pixmap(player.role, size=15, color_hex="#FFFFFF")
+            if not svg_pix.isNull():
+                self.lbl_role_badge.setPixmap(svg_pix)
+                self.lbl_role_badge.setText("")
+                self.lbl_role_badge.setFixedSize(26, 22)
+                self.lbl_role_badge.setAlignment(Qt.AlignCenter)
+                self.lbl_role_badge.setStyleSheet(f"""
+                    QLabel {{
+                        background-color: {r_bg};
+                        border: 1px solid {r_color};
+                        border-radius: 4px;
+                    }}
+                """)
+                self.lbl_role_badge.show()
+                return
+
+        # Fallback estándar / Obsidian / Material
+        self.lbl_role_badge.setPixmap(QPixmap())
+        if style == "emoji":
+            badge_txt = r_emoji
+            self.lbl_role_badge.setFixedSize(26, 22)
+            font_px = "12px"
+            pad_px = "0px"
+        elif style == "initial":
+            badge_txt = f"{r_emoji} {player.role.value[0].upper()}"
+            self.lbl_role_badge.setFixedHeight(22)
+            self.lbl_role_badge.setMinimumWidth(36)
+            font_px = "10px"
+            pad_px = "0px 4px"
+        else:
+            badge_txt = f"{r_emoji} {player.role.value.upper()}"
+            self.lbl_role_badge.setFixedHeight(22)
+            self.lbl_role_badge.setMinimumWidth(62)
+            font_px = "9.5px"
+            pad_px = "0px 6px"
+
+        use_outline = getattr(self, "_badge_outlines", False)
+        border_css = f"border: 1px solid {r_color};" if use_outline else "border: none;"
+        self.lbl_role_badge.setText(badge_txt)
+        self.lbl_role_badge.setAlignment(Qt.AlignCenter)
+        self.lbl_role_badge.setStyleSheet(f"""
+            QLabel {{
+                font-size: {font_px}; font-weight: 900; color: {r_color};
+                background-color: {r_bg};
+                {border_css}
+                border-radius: 5px; padding: {pad_px};
+            }}
+        """)
+        self.lbl_role_badge.show()
 
     def text(self) -> str:
         return self._editor.text()
@@ -486,98 +546,21 @@ class PlayerSlotWidget(QFrame):
         role_badge_style: str = "emoji",
         badge_outlines: bool = False
     ):
-        self._font_size = max(10, min(20, size))
+        self._font_size = max(11, min(22, size))
         self._font_weight = weight
         self._text_align = align
         self._dynamic_font = dynamic_font
         self._role_badge_style = role_badge_style
         self._badge_outlines = badge_outlines
-        qweight = (
-            QFont.Weight.Bold
-            if weight == "bold"
-            else (QFont.Weight.DemiBold if weight == "medium" else QFont.Weight.Normal)
-        )
-        font = self._editor.font()
-        font.setPointSize(self._font_size)
-        font.setWeight(qweight)
-        self._editor.setFont(font)
         self._apply_alignment_layout()
         self._apply_style()
         self._update_editor_style()
-        self._refresh_badges()
-
-    def _refresh_badges(self):
-        if self._player is None:
-            self.lbl_mmr_badge.hide()
-            self.lbl_role_badge.hide()
-            return
-
-        # 1. MMR / Habilidad Naranjita
-        if self._show_mmr:
-            mmr_val = self._player.get_mmr_for_role(self._player.role)
-            self.lbl_mmr_badge.setText(f"⚡{mmr_val}")
-            self.lbl_mmr_badge.setAlignment(Qt.AlignCenter)
-            self.lbl_mmr_badge.setFixedHeight(22)
-            self.lbl_mmr_badge.setMinimumWidth(30)
-            use_outline = getattr(self, "_badge_outlines", False)
-            border_css = "border: 1px solid #FFAA00;" if use_outline else "border: none;"
-            bg_css = "rgba(255, 170, 0, 0.12)" if use_outline else "rgba(255, 170, 0, 0.16)"
-            self.lbl_mmr_badge.setStyleSheet(f"""
-                QLabel {{
-                    font-size: 9.5px; font-weight: 900; color: #FFAA00;
-                    background-color: {bg_css};
-                    {border_css}
-                    border-radius: 5px; padding: 0px 4px;
-                }}
-            """)
-            self.lbl_mmr_badge.show()
-        else:
-            self.lbl_mmr_badge.hide()
-
-        # 2. Insignia de Rol
-        if self._show_roles and self._player.role:
-            r_color = ROLE_COLOR.get(self._player.role, "#AAA")
-            r_bg = ROLE_BG.get(self._player.role, "rgba(255, 255, 255, 0.08)")
-            r_emoji = ROLE_EMOJI.get(self._player.role, "")
-            style = getattr(self, "_role_badge_style", "emoji")
-            if style == "emoji":
-                badge_txt = r_emoji
-                self.lbl_role_badge.setFixedSize(26, 22)
-                font_px = "12px"
-                pad_px = "0px"
-            elif style == "initial":
-                badge_txt = f"{r_emoji} {self._player.role.value[0].upper()}"
-                self.lbl_role_badge.setFixedHeight(22)
-                self.lbl_role_badge.setMinimumWidth(36)
-                font_px = "10px"
-                pad_px = "0px 4px"
-            else:
-                badge_txt = f"{r_emoji} {self._player.role.value.upper()}"
-                self.lbl_role_badge.setFixedHeight(22)
-                self.lbl_role_badge.setMinimumWidth(62)
-                font_px = "9.5px"
-                pad_px = "0px 6px"
-
-            use_outline = getattr(self, "_badge_outlines", False)
-            border_css = f"border: 1px solid {r_color};" if use_outline else "border: none;"
-            self.lbl_role_badge.setText(badge_txt)
-            self.lbl_role_badge.setAlignment(Qt.AlignCenter)
-            self.lbl_role_badge.setStyleSheet(f"""
-                QLabel {{
-                    font-size: {font_px}; font-weight: 900; color: {r_color};
-                    background-color: {r_bg};
-                    {border_css}
-                    border-radius: 5px; padding: {pad_px};
-                }}
-            """)
-            self.lbl_role_badge.show()
-        else:
-            self.lbl_role_badge.hide()
 
     def _update_editor_style(self):
         if not hasattr(self, "_editor"):
             return
 
+        t = theme.tokens()
         special = self._player is not None and is_special_player_name(self._player.name)
         fixed = self._player is not None and self._player.is_fixed
         custom_color = getattr(self._player, "custom_color", None) if self._player else None
@@ -586,49 +569,65 @@ class PlayerSlotWidget(QFrame):
             name_color = "#A4E062"
         elif custom_color:
             name_color = custom_color
+        elif self._player is None and t.id == "overwatch":
+            name_color = "#5F738E"
         else:
-            name_color = theme.accent_light() if fixed else "#E2E6F0"
+            name_color = t.accent_light() if fixed else t.text_primary
 
         css_weight = "800" if getattr(self, "_font_weight", "bold") == "bold" else (
             "600" if getattr(self, "_font_weight", "medium") == "medium" else "500"
         )
 
+        font_name = t.font_family.split(",")[0].strip(' "\'')
+
         if not getattr(self, "_dynamic_font", True):
-            target_size = getattr(self, "_font_size", 13)
+            target_size = max(12, getattr(self, "_font_size", 14))
         else:
-            h = max(28, min(72, self.height()))
-            # Escalado elástico: 28px -> 11px | 50px -> 15px | 72px -> 19px
-            base_size = int(11 + (h - 28) * (19 - 11) / (72 - 28))
-            base_size = max(11, min(20, base_size))
+            h = max(36, min(74, self.height()))
+            # Escalado generoso: 36px -> 14px | 50px -> 16px | 74px -> 20px
+            base_size = int(14 + (h - 36) * (20 - 14) / (74 - 36))
+            base_size = max(13, min(22, base_size))
 
             avail_w = max(40, self._editor.width() - 8)
-            f = QFont("Segoe UI", base_size)
+            f = QFont(font_name, base_size)
             fm = QFontMetrics(f)
             name_text = self._editor.text().strip() or (self._player.name if self._player else "➕")
             text_w = fm.horizontalAdvance(name_text)
 
             size = base_size
-            while text_w > avail_w and size > 10:
+            while text_w > avail_w and size > 11:
                 size -= 1
-                f = QFont("Segoe UI", size)
+                f = QFont(font_name, size)
                 fm = QFontMetrics(f)
                 text_w = fm.horizontalAdvance(name_text)
 
-            target_size = max(10, size)
+            target_size = max(11, size)
 
-        cache_key = (name_color, target_size, css_weight)
+        cache_key = (name_color, target_size, css_weight, font_name)
         if getattr(self, "_cached_editor_key", None) == cache_key:
             return
         self._cached_editor_key = cache_key
 
+        ph_family = t.font_family_display if t.id == "overwatch" else t.font_family
+        ph_style = "italic" if t.id == "overwatch" else "normal"
+        ph_spacing = "2px" if t.id == "overwatch" else "0px"
         self._editor.setStyleSheet(f"""
             QLineEdit {{
+                font-family: {t.font_family};
                 background-color: transparent;
                 border: none;
                 padding: 0px 4px;
                 color: {name_color};
                 font-size: {target_size}px;
                 font-weight: {css_weight};
+            }}
+            QLineEdit::placeholder {{
+                color: #5F738E;
+                font-family: {ph_family};
+                font-size: {target_size}px;
+                font-weight: 800;
+                font-style: {ph_style};
+                letter-spacing: {ph_spacing};
             }}
         """)
 
@@ -652,7 +651,6 @@ class PlayerSlotWidget(QFrame):
         align_mode = getattr(self, "_text_align", "center")
 
         if align_mode == "left":
-            # MODO COMPACTO IZQUIERDA: [Estrella] [Nombre] ... [Habilidad] [Rol]
             self.left_wing.setFixedWidth(28)
             self.right_wing.setFixedWidth(80)
             self._editor.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
@@ -666,16 +664,15 @@ class PlayerSlotWidget(QFrame):
             self._layout.addWidget(self.right_wing, 0, Qt.AlignVCenter)
 
         elif align_mode == "center_mirrored":
-            # MODO ESPEJADO: [Estrella / Candado] — [Nombre] — [Habilidad] [Rol]
             WING_WIDTH = 76
             self.left_wing.setFixedWidth(WING_WIDTH)
             self.right_wing.setFixedWidth(WING_WIDTH)
             self._editor.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            self.left_layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            self.left_layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignVCenter)
             self.left_layout.addWidget(self.lbl_icons)
 
-            self.right_layout.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            self.right_layout.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignVCenter)
             self.right_layout.addWidget(self.lbl_mmr_badge)
             self.right_layout.addWidget(self.lbl_role_badge)
 
@@ -684,16 +681,15 @@ class PlayerSlotWidget(QFrame):
             self._layout.addWidget(self.right_wing, 0, Qt.AlignVCenter)
 
         elif align_mode == "center_wings":
-            # MODO ALAS SIMÉTRICAS: [Rol] — [Nombre] — [Estrella / Candado] [Habilidad]
             WING_WIDTH = 76
             self.left_wing.setFixedWidth(WING_WIDTH)
             self.right_wing.setFixedWidth(WING_WIDTH)
             self._editor.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            self.left_layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            self.left_layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignVCenter)
             self.left_layout.addWidget(self.lbl_role_badge)
 
-            self.right_layout.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            self.right_layout.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignVCenter)
             self.right_layout.addWidget(self.lbl_icons)
             self.right_layout.addWidget(self.lbl_mmr_badge)
 
@@ -702,18 +698,17 @@ class PlayerSlotWidget(QFrame):
             self._layout.addWidget(self.right_wing, 0, Qt.AlignVCenter)
 
         else:
-            # PREDETERMINADO SATHARA (center):
-            # [Rol] [Estrella / Candado] — [Nombre Centrado Inmutable] — [Habilidad / MMR]
+            # PREDETERMINADO SATHARA (center) - 76px Zero-Shift simétrico
             WING_WIDTH = 76
             self.left_wing.setFixedWidth(WING_WIDTH)
             self.right_wing.setFixedWidth(WING_WIDTH)
             self._editor.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            self.left_layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            self.left_layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignVCenter)
             self.left_layout.addWidget(self.lbl_role_badge)
             self.left_layout.addWidget(self.lbl_icons)
 
-            self.right_layout.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            self.right_layout.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignVCenter)
             self.right_layout.addWidget(self.lbl_mmr_badge)
 
             self._layout.addWidget(self.left_wing, 0, Qt.AlignVCenter)
@@ -721,12 +716,14 @@ class PlayerSlotWidget(QFrame):
             self._layout.addWidget(self.right_wing, 0, Qt.AlignVCenter)
 
     def _apply_style(self):
+        t = theme.tokens()
         special = self._player is not None and is_special_player_name(self._player.name)
         fixed = self._player is not None and self._player.is_fixed
         custom_color = getattr(self._player, "custom_color", None) if self._player else None
         is_t1 = (self.team_num == 1)
 
         team_accent = "#00B4FF" if is_t1 else "#FF4444"
+        r = t.border_radius
 
         if special:
             border = "#48781B"
@@ -736,36 +733,50 @@ class PlayerSlotWidget(QFrame):
             hover_bg = "#263622"
         elif custom_color:
             border = custom_color
-            background = "#181A22"
+            background = t.bg_surface
             name_color = custom_color
             hover_border = custom_color
-            hover_bg = "#222735"
+            hover_bg = t.bg_elevated
         else:
-            border = theme.accent() if fixed else "#282A33"
-            background = "#17181D"
-            name_color = theme.accent_light() if fixed else "#E2E6F0"
-            hover_border = team_accent
-            hover_bg = "#202532"
+            # En Overwatch las ranuras NO tienen outlines inactivos: son placas sólidas limpias
+            if t.id == "overwatch":
+                border = t.accent if fixed else "transparent"
+                background = t.bg_surface
+                name_color = t.text_primary
+                hover_border = "#00F0FF"  # Cian Neón reactivo en hover
+                hover_bg = t.bg_elevated
+            else:
+                border = t.accent if fixed else t.border_subtle
+                background = t.bg_surface
+                name_color = t.accent_light() if fixed else t.text_primary
+                hover_border = team_accent
+                hover_bg = t.bg_elevated
 
         self._apply_glow(special)
         self._update_editor_style()
+        if self._player:
+            self._refresh_role_badge(self._player)
+
         css_weight = "800" if self._font_weight == "bold" else ("600" if self._font_weight == "medium" else "500")
+
+        # En Overwatch se proyecta la franja lateral de color de bando (Azul vs Rojo) de la Captura 1
+        side_border = f"border-left: 3px solid {team_accent};" if t.id == "overwatch" else f"border: 1px solid {border};"
 
         self.setStyleSheet(f"""
             #playerSlot {{
                 background-color: {background};
-                border: 1px solid {border};
-                border-radius: 5px;
+                {side_border}
+                border-radius: {r}px;
             }}
             #playerSlot:hover, #playerSlot[hovered="true"] {{
                 background-color: {hover_bg};
-                border: 1px solid {hover_border};
-                border-radius: 5px;
+                border: 1.5px solid {hover_border};
+                border-radius: {r}px;
             }}
             #playerSlot[dropTarget="true"] {{
-                border: 1px solid {theme.accent()} !important;
-                background-color: {theme.accent_rgba(0.20)} !important;
-                border-radius: 5px;
+                border: 1.5px solid {t.accent} !important;
+                background-color: {t.accent_rgba(0.22)} !important;
+                border-radius: {r}px;
             }}
             QLineEdit#playerSlotEditor {{
                 background-color: transparent;
@@ -775,6 +786,7 @@ class PlayerSlotWidget(QFrame):
                 font-weight: {css_weight};
             }}
         """)
+
     def _apply_glow(self, special: bool):
         if special:
             if not isinstance(self._editor.graphicsEffect(), QGraphicsDropShadowEffect):
@@ -793,6 +805,10 @@ def _indicators(player: Player, saved: bool, show_roles: bool, show_mmr: bool = 
     if show_mmr:
         mmr_val = player.get_mmr_for_role(player.role)
         parts.append(f"⚡{mmr_val}")
+    if is_special_player_name(player.name):
+        parts.append("⚜️")
+    if getattr(player, "is_vip", False):
+        parts.append("👑")
     if saved:
         parts.append("⭐")
     if player.fixed_team:

@@ -60,12 +60,14 @@ def render_clean_tierlist_pixmap(
     canvas_widget: TierCanvasWidget,
     current_mode: str = "hero",
     export_ratio: str = "16:9",
+    show_watermark: bool = True,
 ) -> QPixmap:
-    """Renders tier list in 16:9 panoramic or Auto adaptive bounding box with RATAMMAKER logo."""
+    """Renders tier list in 16:9 panoramic or Auto adaptive bounding box without empty gaps."""
     from PySide6.QtWidgets import QApplication
 
-    header_h = 56
+    header_h = 56 if show_watermark else 0
 
+    orig_hide_wm = getattr(canvas_widget, "hide_watermark", False)
     for r in rows:
         r.controls_bar.hide()
     canvas_widget.hide_watermark = True
@@ -123,7 +125,7 @@ def render_clean_tierlist_pixmap(
         canvas_widget.setMaximumWidth(orig_max_w)
         for r in rows:
             r.controls_bar.show()
-        canvas_widget.hide_watermark = False
+        canvas_widget.hide_watermark = orig_hide_wm
         canvas_widget.adjustSize()
 
         rw = rows_pixmap.width()
@@ -141,7 +143,7 @@ def render_clean_tierlist_pixmap(
         rows_pixmap = canvas_widget.grab()
         for r in rows:
             r.controls_bar.show()
-        canvas_widget.hide_watermark = False
+        canvas_widget.hide_watermark = orig_hide_wm
 
         rw = rows_pixmap.width()
         rh = rows_pixmap.height()
@@ -160,18 +162,19 @@ def render_clean_tierlist_pixmap(
     painter.setRenderHint(QPainter.Antialiasing)
     painter.setRenderHint(QPainter.SmoothPixmapTransform)
 
-    header_rect = QRect(0, 0, final_w, header_h)
-    painter.fillRect(header_rect, QColor("#14151B"))
+    if header_h > 0:
+        header_rect = QRect(0, 0, final_w, header_h)
+        painter.fillRect(header_rect, QColor("#14151B"))
 
-    painter.setPen(QPen(QColor("#282B36"), 1))
-    painter.drawLine(0, header_h - 1, final_w, header_h - 1)
+        painter.setPen(QPen(QColor("#282B36"), 1))
+        painter.drawLine(0, header_h - 1, final_w, header_h - 1)
 
-    watermark = get_watermark_pixmap(target_height=36)
-    if watermark:
-        painter.setOpacity(1.0)
-        logo_x = final_w - watermark.width() - 24
-        logo_y = (header_h - watermark.height()) // 2
-        painter.drawPixmap(logo_x, logo_y, watermark)
+        watermark = get_watermark_pixmap(target_height=36)
+        if watermark:
+            painter.setOpacity(1.0)
+            logo_x = final_w - watermark.width() - 24
+            logo_y = (header_h - watermark.height()) // 2
+            painter.drawPixmap(logo_x, logo_y, watermark)
 
     painter.setOpacity(1.0)
     painter.drawPixmap(0, header_h, rows_pixmap)

@@ -1,0 +1,91 @@
+================================================================================
+🏛️ OVERWATCH TEAM MIXER — PINTURAS RUPESTRES DE ARQUITECTURA (SSOT v1.2.0)
+================================================================================
+"Tallado en la roca para que los arquitectos nómadas no se pierdan en la niebla"
+
+[1. INVARIANTES SAGRADAS DEL MOTOR]
+--------------------------------------------------------------------------------
+• IDENTIDAD OFICIAL: El juego se llama simplemente 'Overwatch'. Prohibido usar el '2'.
+• SSOT DE VERSIÓN: La versión vive EXCLUSIVAMENTE en data/version.json.
+  core/version.py la expone inmutable como VersionInfo. Prohibido hardcodear versiones en UI.
+• ESTILO BASE OBLIGADO: app.setStyle("Fusion") en main.py (inmune a temas de sistema).
+• VENTANAS OBSIDIANA: Popups (QMenu) y Viewports con fondos sólidos '!important'
+  (evita transparencias y glitches en Hyprland / Plasma Wayland).
+• ZERO-SHIFT ANATOMY: En player_slot.py, 'left_wing' y 'right_wing' TIENEN 76px
+  FIJOS RESERVADOS. El nombre del jugador se ancla al centro geométrico.
+• KINETIC 144 FPS: smooth_scroll.py usa _KineticScrollDriver con PreciseTimer a ~7ms
+  (144 Hz) con OutCubic. Cero animaciones lentas a 60 Hz.
+• PERSISTENCIA GLOBAL DE GEOMETRÍA: Todo diálogo/ventana usa PersistentGeometryMixin.
+  Valida intersección con QGuiApplication.screens() antes de posicionar.
+• CONTENCIÓN GLOBAL DE SCROLL EN AJUSTES: settings_dialog.py usa _SettingsScrollArea
+  acoplado a _SettingsPageWidget (minimumSizeHint width = 0). CERO barras horizontales.
+• CARGA DIFERIDA DE FUENTES: QFontDatabase.addApplicationFont() NUNCA se invoca
+  antes de que exista QApplication(sys.argv) en memoria (evita SIGSEGV).
+• RESTABLECIMIENTO MMR: Player.reset_mmr(5) limpia a 5, borra calibraciones IA
+  empíricas y resetea partidas en Guardados, Banca y Equipos a la vez.
+
+[2. TOPOLOGÍA & RESPONSABILIDADES SSOT]
+--------------------------------------------------------------------------------
+core/               -> Núcleo Puro de Dominio (Python sin dependencias de Qt).
+  ├── version.py       -> SSOT de lectura y caché inmutable de versión (VersionInfo).
+  ├── models.py        -> Modelos Player, MatchSettings, Hero, BanManager, GameMode.
+  ├── roster.py        -> SSOT del Roster (Alineación Activa, Banca, Guardados, Rotación).
+  ├── shuffler.py      -> Motor Matemático de Matchmaking y Balance Espejo de Roles.
+  ├── match_generator.py -> Orquestador de Partida (Shuffler + MapPool + Bans).
+  ├── settings.py      -> SettingsManager con soporte de window_geometries y theme_name.
+  └── special_player.py  -> Núcleo de reconocimiento especial (Sathara ⚜️).
+data/               -> Archivos de Configuración y Datos Estáticos.
+  └── version.json     -> Archivo JSON editable a mano con versión, canal y estado.
+ui/styles/          -> Sistema de Diseño Desacoplado (Multi-Skin Engine).
+  ├── tokens.py        -> SSOT de Tokens Semánticos (ThemeTokens: fondos, bordes, layout_type).
+  ├── theme_manager.py -> Orquestador Singleton de temas y carga segura de fuentes.
+  ├── theme.py         -> Fachada pública retrocompatible (theme.accent(), etc.).
+  └── themes/          -> Estrategias de Tema: base.py, obsidian.py, overwatch.py, material.py.
+ui/dialogs/         -> Diálogos y Modales.
+  ├── common_geometry.py -> PersistentGeometryMixin para memoria automática de ventanas.
+  ├── settings_dialog.py -> Ventana de Ajustes 2.0 (Tríada de botones y contención de scroll).
+  └── settings_tabs/   -> Pestañas desacopladas (tab_about.py conectado a version.py).
+ui/widgets/         -> Presentación Pura y Componentes Visuales.
+  ├── player_slot.py   -> Tarjeta de jugador (Zero-Shift 76px, badges SVG, hover neón).
+  ├── team_display.py  -> Paneles de equipo con franjas superiores clásicas de 2.5px.
+  ├── match_display.py -> Tríada de botones simétrica (46px, 8px radio, outline 1px).
+  ├── match_map_banner.py -> Tarjeta de mapa con outline fino 1px y 2 líneas sin cortes.
+  ├── roster_dock.py   -> Dock de 2 pestañas 50/50 simétricas a lo ancho.
+  ├── bench_panel.py   -> Botonera 33/33/33 y columnas adaptativas (1 col < 450px / 2 col >= 450px).
+  └── saved_panel.py   -> Rejilla 2 columnas permanentes y chips estructurados con streamer a la derecha.
+
+[3. EL MANDAMIENTO DE AISLAMIENTO DE TEMAS (ANTI-STYLE-POLLUTION)]
+--------------------------------------------------------------------------------
+1. PROHIBIDO HARDCODEAR CHEQUEOS DE TEMA:
+   Ningún widget debe evaluar `if theme == "overwatch"`. Los widgets solo leen
+   atributos semánticos de `tokens.py` (ej. tokens.slot_empty_text, tokens.button_secondary_style).
+2. CONTENCIÓN DE ESTILOS:
+   Todo estilo visual específico de una skin vive en su respectiva clase Strategy
+   en `ui/styles/themes/`.
+3. REVERSIBILIDAD TOTAL:
+   Cambiar de tema debe restaurar el 100% de la apariencia anterior sin dejar residuos.
+4. ESTADO EN RELEASE v1.2.0:
+   El selector de skins en Ajustes está temporalmente oculto (`box_theme.hide()`) y
+   congelado en Obsidian Esports hasta la fase v1.3.0.
+
+[4. JERARQUÍA DE IDENTIDADES Y PRIVILEGIOS]
+--------------------------------------------------------------------------------
+• NIVEL OVERLORD (⚜️ Sathara):
+  Aura esmeralda neón (#61ab02), Flor de Lis Real en insignias, inmunidad absoluta
+  a la rotación automática, Dynamic Island superior y línea de mando directa.
+  (100% ACTIVO en el motor).
+• NIVEL ANFITRIÓN / STREAMER (👑 Modo Sudo):
+  Privilegio temporal de transmisión. Garantiza presencia en directo sin desbalancear
+  roles ni MMR. Corona posicionada a la extrema derecha del chip de guardados.
+• NIVEL CIVIL (Jugadores / Viewers):
+  Gobernados por la Rotación Justa Continua (2 en 2) con Escudo Bo2.
+
+[5. REGLAS DE ORO DEL ARQUITECTO]
+--------------------------------------------------------------------------------
+1. REGLA ANTI-ADIVINANZA: No toques código que no hayas leído en el prompt.
+2. PARCHES ATÓMICOS: Modificaciones vía patch.py con reescritura canónica completa o
+   aserciones estrictas. PROHIBIDO el reemplazo multilínea frágil sin verificación.
+3. COMPILACIÓN PREVENTIVA: Todo patch.py ejecuta py_compile.compile() en cada archivo.
+4. SUITE 100% EN VERDE: 153/153 tests pasando en ~45s con pytest.
+5. STANDALONE TEST SUITE: tests/conftest.py provee fixture 'qapp' nativo independiente.
+================================================================================
