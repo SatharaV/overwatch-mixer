@@ -1,11 +1,10 @@
-"""Saved players panel with clean separator line, outline action toolbar, and clean drag lifecycle."""
+"""Saved players panel with clean separator line, outline action toolbar, and hardware-accelerated 50/50 grid."""
 
 from __future__ import annotations
-from .smooth_scroll import SmoothScrollArea
 
 from typing import Optional, Set
-from PySide6.QtCore import QTimer, QPoint, QRect, QSize, Qt, Signal
-from PySide6.QtGui import QAction, QColor, QDrag, QGuiApplication, QCursor, QPainter, QBrush, QPen, QFont
+from PySide6.QtCore import QPoint, QRect, QSize, Qt, Signal
+from PySide6.QtGui import QAction, QBrush, QColor, QCursor, QDrag, QGuiApplication, QPainter, QPen
 from PySide6.QtWidgets import (
     QApplication,
     QColorDialog,
@@ -13,6 +12,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
     QGraphicsDropShadowEffect,
+    QGridLayout,
     QHBoxLayout,
     QInputDialog,
     QLabel,
@@ -20,12 +20,12 @@ from PySide6.QtWidgets import (
     QMenu,
     QPushButton,
     QRubberBand,
-    QScrollArea,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
 
-from owervach_tmixer.core.models import Player, Role
+from owervach_tmixer.core.models import Player
 from owervach_tmixer.core.special_player import (
     SPECIAL_GLOW,
     format_player_name,
@@ -33,8 +33,10 @@ from owervach_tmixer.core.special_player import (
 )
 from owervach_tmixer.ui.dialogs.player_properties_dialog import PlayerPropertiesDialog
 from owervach_tmixer.ui.styles import theme
-from .dnd import clear_all_drop_highlights, make_payload, payload_from, payload_to_mime, set_drop_highlight
-from .flow_layout import FlowLayout
+from .dnd import clear_all_drop_highlights, make_payload, payload_from, payload_to_mime
+from .smooth_scroll import SmoothScrollArea
+
+_CHIP_HEIGHT = 28
 
 
 def sanitize_player_name(raw: str) -> Optional[str]:
@@ -89,39 +91,41 @@ class SavedChip(QFrame):
         self._is_selected = False
 
         self.setObjectName("savedChip")
+        self.setFixedHeight(_CHIP_HEIGHT)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setMinimumWidth(0)
         self.setToolTip("Arrastra para añadir a un equipo · Doble clic: añadir automáticamente")
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(lambda pos, chip=self: self._panel._show_chip_menu(chip, pos))
-
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setFixedHeight(28)
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(5, 2, 5, 2)
+        layout.setContentsMargins(6, 2, 6, 2)
         layout.setSpacing(4)
 
-        # 1. Puntito de estado al extremo izquierdo
+        # 1. Puntito de estado
         self.lbl_status = QLabel(self)
         self.lbl_status.setFixedWidth(10)
         self.lbl_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_status.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         layout.addWidget(self.lbl_status, 0)
 
-        # 2. MMR / Habilidad
+        # 2. MMR
         self.lbl_mmr = QLabel(self)
-        self.lbl_mmr.setFixedWidth(20)
+        self.lbl_mmr.setFixedWidth(22)
         self.lbl_mmr.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_mmr.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         layout.addWidget(self.lbl_mmr, 0)
 
-        # 3. Nombre del jugador (alineado a la izquierda, expandiendo)
+        # 3. Nombre del jugador
         self.lbl_name = QLabel(self.player.name, self)
         self.lbl_name.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.lbl_name.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.lbl_name.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self.lbl_name.setMinimumWidth(0)
         layout.addWidget(self.lbl_name, 1)
 
-        # 4. Corona de Streamer / Emblemas a la derecha del nombre
+        # 4. Corona de Streamer / Emblemas
         self.lbl_badges = QLabel(self)
         self.lbl_badges.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.lbl_badges.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
@@ -187,11 +191,6 @@ class SavedChip(QFrame):
                     background: transparent;
                 }
             """)
-            glow = QGraphicsDropShadowEffect(self)
-            glow.setColor(QColor(SPECIAL_GLOW))
-            glow.setBlurRadius(14)
-            glow.setOffset(0, 0)
-            self.setGraphicsEffect(glow)
         elif custom_color:
             self.setStyleSheet(f"""
                 QFrame#savedChip {{
@@ -312,7 +311,7 @@ class SavedChip(QFrame):
 
 
 class SavedPanel(QFrame):
-    """Clean full-height pool of permanently saved players with distinct separator and outline toolbar."""
+    """Clean pool of permanently saved players with hardware-accelerated 50/50 responsive grid."""
 
     add_to_match = Signal(str, object)
     add_to_bench = Signal(str)
@@ -339,6 +338,7 @@ class SavedPanel(QFrame):
         self._buttons: list[QPushButton] = []
         self.selected_names: set[str] = set()
         self._last_selected: str | None = None
+        self._last_cols = None
         self._rubber_band = None
         self._rubber_origin = QPoint()
         self.setObjectName("savedPanel")
@@ -459,57 +459,55 @@ class SavedPanel(QFrame):
         self.sep.setStyleSheet("background-color: #2D3242; border: none; margin: 2px 0 2px 0;")
         layout.addWidget(self.sep)
 
-        # 4. Scrollable Pool con 2 columnas simétricas permanentes
+        # 4. Scrollable Pool con BitBlt activado en Viewport Sólido
         self.pool = QWidget()
         self.pool.setObjectName("savedPool")
-        self.pool_layout = FlowLayout(self.pool, margin=4, h_spacing=4, v_spacing=4)
+        self._grid_container = QVBoxLayout(self.pool)
+        self._grid_container.setContentsMargins(0, 0, 0, 0)
+        self._grid_container.setSpacing(4)
+        self._grid = QGridLayout()
+        self._grid.setContentsMargins(0, 0, 0, 0)
+        self._grid.setHorizontalSpacing(6)
+        self._grid.setVerticalSpacing(4)
+        self._grid_container.addLayout(self._grid)
+        self._grid_container.addStretch(1)
+
         self.pool_scroll = SmoothScrollArea()
         self.pool_scroll.setObjectName("savedPoolScroll")
         self.pool_scroll.setWidgetResizable(True)
         self.pool_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.pool_scroll.setWidget(self.pool)
-        self.pool_scroll.viewport().setAutoFillBackground(False)
-        self.pool_scroll.viewport().setStyleSheet("background-color: transparent; border: none;")
+        self.pool_scroll.viewport().setAutoFillBackground(True)
         layout.addWidget(self.pool_scroll, 1)
 
         self.setAcceptDrops(True)
         self.apply_theme()
 
-    def _relayout_pool(self):
-        if not hasattr(self, "pool_scroll") or not hasattr(self, "pool_layout"):
-            return
-        vw = self.pool_scroll.viewport().width() if self.pool_scroll.viewport() else 0
-        if vw <= 0 and hasattr(self, "pool"):
-            vw = self.pool.width()
-        if vw <= 0:
-            vw = self.width() - 24
-        if vw > 0:
-            cols = 2
-            margin = 4
-            spacing = 4
-            avail_w = max(100, vw - (margin * 2) - spacing - 24)
-            chip_w = avail_w // cols
-            for chip in getattr(self, "chips", []):
-                chip.setFixedWidth(chip_w)
-            self.pool.resize(vw, max(60, self.pool.height()))
-            self.pool_layout.setGeometry(self.pool.rect())
-        self.pool.updateGeometry()
-        self.pool.update()
+    def _current_columns(self) -> int:
+        w = self.width()
+        if w >= 800:
+            return 4
+        elif w >= 550:
+            return 3
+        elif w >= 280:
+            return 2
+        return 1
 
-    def showEvent(self, event):
-        super().showEvent(event)
-        self._relayout_pool()
-        QTimer.singleShot(10, self._relayout_pool)
+    def _relayout_grid(self):
+        cols = self._current_columns()
+        while self._grid.count():
+            self._grid.takeAt(0)
+        for col in range(8):
+            self._grid.setColumnStretch(col, 1 if col < cols else 0)
+        for i, chip in enumerate(self.chips):
+            self._grid.addWidget(chip, i // cols, i % cols)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self._relayout_pool()
-        QTimer.singleShot(10, self._relayout_pool)
-
-    def changeEvent(self, event):
-        super().changeEvent(event)
-        if event.type() == event.Type.WindowStateChange:
-            QTimer.singleShot(30, self._relayout_pool)
+        cols = self._current_columns()
+        if getattr(self, "_last_cols", None) != cols:
+            self._last_cols = cols
+            self._relayout_grid()
 
     @property
     def content(self):
@@ -540,8 +538,8 @@ class SavedPanel(QFrame):
                 border: 1.5px solid {accent};
                 background-color: #1F261B;
             }}
-            QScrollArea#savedPoolScroll, QScrollArea#savedPoolScroll QWidget#savedPool {{
-                background-color: transparent;
+            QScrollArea#savedPoolScroll, QScrollArea#savedPoolScroll QWidget#savedPool, QScrollArea#savedPoolScroll > QWidget > QWidget {{
+                background-color: {t.bg_surface};
                 border: none;
             }}
         """)
@@ -573,8 +571,8 @@ class SavedPanel(QFrame):
         active_lower = {n.casefold() for n in (active_names or ())}
         bench_lower = {n.casefold() for n in (bench_names or ())}
 
-        while self.pool_layout.count():
-            item = self.pool_layout.takeAt(0)
+        while self._grid.count():
+            item = self._grid.takeAt(0)
             if item.widget() is not None:
                 item.widget().deleteLater()
 
@@ -583,15 +581,19 @@ class SavedPanel(QFrame):
         if self._last_selected not in saved_names_set:
             self._last_selected = None
 
+        cols = self._current_columns()
+        self._last_cols = cols
+        for col in range(8):
+            self._grid.setColumnStretch(col, 1 if col < cols else 0)
+
         self.chips = []
-        for p in saved:
+        for i, p in enumerate(saved):
             p_fold = p.name.casefold()
             in_act = p_fold in active_lower
             in_bnc = p_fold in bench_lower
             chip = SavedChip(self, p, in_active=in_act, in_bench=in_bnc, parent=self.pool)
-            self.pool_layout.addWidget(chip)
+            self._grid.addWidget(chip, i // cols, i % cols)
             self.chips.append(chip)
-        self._relayout_pool()
 
     def _on_add(self):
         name = self.add_input.text().strip()

@@ -196,16 +196,19 @@ class BenchSavedOperationsMixin:
             return
 
         moved = 0
-        for idx, p in enumerate(list(self.roster.team1_slots)):
+        for idx in range(len(self.roster.team1_slots)):
+            p = self.roster.team1_slots[idx]
             if p is not None:
                 self.roster.send_to_bench(1, idx)
                 moved += 1
 
-        for idx, p in enumerate(list(self.roster.team2_slots)):
+        for idx in range(len(self.roster.team2_slots)):
+            p = self.roster.team2_slots[idx]
             if p is not None:
                 self.roster.send_to_bench(2, idx)
                 moved += 1
 
+        self.roster.sanitize()
         self.after_roster_change()
         self.win.show_toast(f"📤 {moved} jugador(es) enviados a Zona de Espera", "info")
         self.win.status_bar.showMessage("Todos los jugadores enviados a Zona de Espera", 3000)
@@ -323,7 +326,6 @@ class BenchSavedOperationsMixin:
                         saved_by_name[key] = imported_p
                         added += 1
 
-                    # Propagar color y MMR a jugadores ya desplegados en partida o banca
                     for active_p in self.roster.active_players() + self.roster.bench:
                         if active_p.name.casefold() == key:
                             active_p.custom_color = imported_p.custom_color
@@ -345,6 +347,7 @@ class BenchSavedOperationsMixin:
                     names = [line.strip() for line in f if line.strip()]
                 added = self._add_names_to_saved(names)
 
+            self.roster.sanitize()
             self.after_roster_change()
             msg = []
             if added > 0:
@@ -355,6 +358,7 @@ class BenchSavedOperationsMixin:
             self.win.show_toast(f"✅ Tokens importados: {desc}", "success")
         except Exception as exc:
             self.win.show_toast(f"No se pudo importar: {exc}", "warning")
+
     def export_saved(self: RosterController, path: str):
         try:
             if path.endswith(".json"):
@@ -365,7 +369,6 @@ class BenchSavedOperationsMixin:
             self.win.show_toast("Guardados exportados correctamente.", "success")
         except Exception as exc:
             self.win.show_toast(f"No se pudo exportar: {exc}", "warning")
-
 
     def reorder_bench(self: RosterController, src_name: str, target_name: str):
         if src_name == target_name:

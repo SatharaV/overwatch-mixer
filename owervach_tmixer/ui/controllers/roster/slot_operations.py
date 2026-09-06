@@ -41,6 +41,14 @@ class SlotOperationsMixin:
             return
 
         old_folded = old_name.casefold()
+        new_folded = clean_name.casefold()
+
+        # Blindaje: Evitar colisión con jugadores existentes al renombrar
+        if new_folded != old_folded:
+            for p in self.roster.active_players() + self.roster.bench:
+                if p.name.casefold() == new_folded and p.name.casefold() != old_folded:
+                    self.win.show_toast(f"⚠️ El jugador '{clean_name}' ya existe.", "warning")
+                    return
 
         for p in self.roster.active_players():
             if p.name.casefold() == old_folded:

@@ -1,4 +1,4 @@
-"""Bench panel ('Zona de Espera') with clean drag lifecycle, zero outlines, and tactical theme support."""
+"""Bench panel ('Zona de Espera') with clean drag lifecycle, zero outlines, and hardware-accelerated grid."""
 
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ class _BenchChip(QFrame):
         self.setObjectName("benchChip")
         self.setFixedHeight(_CHIP_HEIGHT)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.setMinimumWidth(8)
+        self.setMinimumWidth(0)
         self.setToolTip("Arrastra para añadir a un equipo · Doble clic: añadir automáticamente · Clic derecho: opciones")
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(lambda pos, chip=self: self._panel._show_chip_menu(chip, pos))
@@ -189,8 +189,6 @@ class _BenchChip(QFrame):
                 QPushButton {{ background: transparent; border: none; color: #A4E062; }}
                 QPushButton:hover {{ color: #FF6B6B; }}
             """)
-            glow = self._panel._make_glow(self)
-            self.setGraphicsEffect(glow)
         elif custom_color:
             self.setStyleSheet(f"""
                 QFrame#benchChip {{
@@ -320,7 +318,7 @@ class _BenchChip(QFrame):
 
 
 class BenchPanel(QFrame):
-    """Grid of bench players with clear separator, outline toolbar, and custom colors."""
+    """Grid of bench players with hardware-accelerated opaque viewport and zero-lag centering."""
 
     add_to_team = Signal(str, object)
     remove_from_bench = Signal(str)
@@ -346,6 +344,7 @@ class BenchPanel(QFrame):
         self._fixed_names: set[str] | None = None
         self.selected_names: set[str] = set()
         self._last_selected: str | None = None
+        self._last_cols = None
         self._rubber_band = None
         self._rubber_origin = QPoint()
         self.setObjectName("benchPanel")
@@ -354,7 +353,6 @@ class BenchPanel(QFrame):
         layout.setContentsMargins(8, 4, 8, 6)
         layout.setSpacing(6)
 
-        # Cabecera de Botonera: 33% / 33% / 33% alineados simétricamente
         head_row = QHBoxLayout()
         head_row.setContentsMargins(0, 0, 0, 0)
         head_row.setSpacing(6)
@@ -389,7 +387,7 @@ class BenchPanel(QFrame):
         self.sep.setStyleSheet("background-color: #2D3242; border: none; margin: 2px 0 2px 0;")
         layout.addWidget(self.sep)
 
-        # 3. Grid of Chips
+        # 3. Grid of Chips con Viewport Sólido OpaquePaint
         self.bench_grid = QWidget()
         self.bench_grid.setObjectName("benchGrid")
         self._grid_container = QVBoxLayout(self.bench_grid)
@@ -407,6 +405,7 @@ class BenchPanel(QFrame):
         self.bench_scroll.setWidgetResizable(True)
         self.bench_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.bench_scroll.setWidget(self.bench_grid)
+        self.bench_scroll.viewport().setAutoFillBackground(True)
         self.bench_scroll.setAcceptDrops(True)
         self.bench_grid.setAcceptDrops(True)
         self.bench_scroll.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -434,13 +433,12 @@ class BenchPanel(QFrame):
                 border: 1.5px solid {accent};
                 background-color: {t.accent_rgba(0.20)};
             }}
-            QScrollArea#benchScroll, QWidget#benchGrid {{
-                background-color: transparent;
+            QScrollArea#benchScroll, QScrollArea#benchScroll QWidget#benchGrid, QScrollArea#benchScroll > QWidget > QWidget {{
+                background-color: {t.bg_surface};
                 border: none;
             }}
         """)
 
-        # Textos sin emojis en Overwatch
         if is_ow:
             self.lbl_espectadores.setText("ESPECTADORES")
             self.lbl_espectadores.setStyleSheet(f"font-family: {t.font_family_display}; font-size: 15px; font-weight: 900; font-style: italic; color: #C8D6E5; letter-spacing: 0.8px; background: transparent; border: none; padding: 2px 0;")
@@ -519,12 +517,12 @@ class BenchPanel(QFrame):
                         border-radius: 5px;
                         padding: 5px 4px;
                     }
-                    QPushButton:hover {
+                    QPushButton:hover {{
                         background-color: rgba(255, 170, 0, 0.22);
                         border-color: #FFC040;
                         color: #FFFFFF;
-                    }
-                    QPushButton:pressed { background-color: rgba(255, 170, 0, 0.35); }
+                    }}
+                    QPushButton:pressed {{ background-color: rgba(255, 170, 0, 0.35); }}
                 """)
 
         if hasattr(self, "btn_bench_all"):
@@ -557,23 +555,16 @@ class BenchPanel(QFrame):
                         border-radius: 5px;
                         padding: 5px 4px;
                     }
-                    QPushButton:hover {
+                    QPushButton:hover {{
                         background-color: rgba(255, 68, 68, 0.22);
                         border-color: #FFAAAA;
                         color: #FFFFFF;
-                    }
-                    QPushButton:pressed { background-color: rgba(255, 68, 68, 0.35); }
+                    }}
+                    QPushButton:pressed {{ background-color: rgba(255, 68, 68, 0.35); }}
                 """)
 
         for chip in self.chips:
             chip._apply_chip_style()
-
-    def _make_glow(self, chip: _BenchChip):
-        glow = QGraphicsDropShadowEffect(chip)
-        glow.setColor(QColor(SPECIAL_GLOW))
-        glow.setBlurRadius(14)
-        glow.setOffset(0, 0)
-        return glow
 
     def _dnd_enter(self, event):
         payload = payload_from(event.mimeData())
@@ -621,9 +612,9 @@ class BenchPanel(QFrame):
         w = self.width()
         if w >= 850:
             return 4
-        elif w >= 650:
+        elif w >= 600:
             return 3
-        elif w >= 450:
+        elif w >= 380:
             return 2
         return 1
 
@@ -631,8 +622,8 @@ class BenchPanel(QFrame):
         cols = self._current_columns()
         while self._grid.count():
             self._grid.takeAt(0)
-        for col in range(cols):
-            self._grid.setColumnStretch(col, 1)
+        for col in range(8):
+            self._grid.setColumnStretch(col, 1 if col < cols else 0)
         for i, chip in enumerate(self.chips):
             self._grid.addWidget(chip, i // cols, i % cols)
 
@@ -676,14 +667,13 @@ class BenchPanel(QFrame):
 
         cols = self._current_columns()
         self._last_cols = cols
-        for col in range(cols):
-            self._grid.setColumnStretch(col, 1)
+        for col in range(8):
+            self._grid.setColumnStretch(col, 1 if col < cols else 0)
 
         self.chips = []
         t = theme.tokens()
         is_ow = (t.id == "overwatch")
 
-        # Si no hay jugadores en espera en tema Overwatch, mostrar ranuras oficiales VACÍO
         if not bench and is_ow:
             for i in range(2):
                 lbl_vacio = QLabel("VACÍO", self.bench_grid)

@@ -21,9 +21,10 @@ class Roster:
 
     def __post_init__(self):
         self._normalize_slots()
+        self.sanitize()
 
     # ------------------------------------------------------------------ #
-    # Basic accessors
+    # Basic accessors & Sanitization
     # ------------------------------------------------------------------ #
     @property
     def team_size(self) -> int:
@@ -41,7 +42,59 @@ class Roster:
                 overflow.extend(p for p in slots[size:] if p is not None)
                 setattr(self, name, slots[:size])
         if overflow:
-            self.bench.extend(self._reset_for_bench(p) for p in overflow)
+            for p in overflow:
+                if not self.name_taken(p.name):
+                    self.bench.append(self._reset_for_bench(p))
+
+    def sanitize(self) -> bool:
+        """
+        Enforces absolute SSOT uniqueness across active teams, bench, and saved.
+        Returns True if any corrupted entry was purged.
+        """
+        changed = False
+        seen_active: set[str] = set()
+
+        for i, p in enumerate(self.team1_slots):
+            if p is not None:
+                fn = p.name.strip().casefold()
+                if not fn or fn in seen_active:
+                    self.team1_slots[i] = None
+                    changed = True
+                else:
+                    seen_active.add(fn)
+
+        for i, p in enumerate(self.team2_slots):
+            if p is not None:
+                fn = p.name.strip().casefold()
+                if not fn or fn in seen_active:
+                    self.team2_slots[i] = None
+                    changed = True
+                else:
+                    seen_active.add(fn)
+
+        clean_bench: list[Player] = []
+        seen_bench: set[str] = set()
+        for p in self.bench:
+            fn = p.name.strip().casefold()
+            if not fn or fn in seen_active or fn in seen_bench:
+                changed = True
+                continue
+            seen_bench.add(fn)
+            clean_bench.append(p)
+        self.bench = clean_bench
+
+        clean_saved: list[Player] = []
+        seen_saved: set[str] = set()
+        for p in self.saved:
+            fn = p.name.strip().casefold()
+            if not fn or fn in seen_saved:
+                changed = True
+                continue
+            seen_saved.add(fn)
+            clean_saved.append(p)
+        self.saved = clean_saved
+
+        return changed
 
     def active_players(self) -> list[Player]:
         return [p for p in self.team1_slots + self.team2_slots if p is not None]
@@ -121,7 +174,7 @@ class Roster:
             raise RosterError("El nombre no puede estar vacío.")
         if self.name_taken(name):
             raise RosterError(f"El jugador '{name}' ya existe.")
-        
+
         saved_p = self.find_saved(name)
         if saved_p:
             player = Player(
@@ -183,6 +236,9 @@ class Roster:
     def send_to_bench(self, team_num: int, slot_idx: int) -> Player | None:
         player = self.clear_slot(team_num, slot_idx)
         if player is not None:
+            existing = self.find_bench(player.name)
+            if existing is not None:
+                self.bench.remove(existing)
             self.bench.append(self._reset_for_bench(player))
         return player
 
@@ -196,8 +252,9 @@ class Roster:
         slot = self.first_free_slot(team_num)
         if slot is None:
             raise RosterError(f"El Equipo {team_num} está lleno.")
-        if player in self.bench:
-            self.bench.remove(player)
+        existing = self.find_bench(player.name)
+        if existing is not None:
+            self.bench.remove(existing)
         self.set_slot(team_num, slot, player)
         return slot
 
@@ -215,12 +272,10 @@ class Roster:
         if not folded:
             raise RosterError("El nombre no puede estar vacío.")
 
-        # Si ya está activo en partida
         for p in self.active_players():
             if p.name.casefold() == folded:
                 raise RosterError(f"El jugador '{name}' ya está en la alineación.")
 
-        # Auto-promoción: Si está en espera, se extrae limpiamente sin error
         existing_bench = self.find_bench(name)
         if existing_bench:
             self.bench.remove(existing_bench)
@@ -277,9 +332,11 @@ class Roster:
                 custom_color=custom_color,
             )
 
-        # Si el slot objetivo tenía un ocupante, enviarlo a espera
         occupant = self.player_at(team_num, target_slot)
         if occupant is not None and occupant is not player:
+            existing_occ_bench = self.find_bench(occupant.name)
+            if existing_occ_bench:
+                self.bench.remove(existing_occ_bench)
             self.bench.append(self._reset_for_bench(occupant))
 
         self.set_slot(team_num, target_slot, player)
@@ -381,8 +438,14 @@ class Roster:
         self.saved = [p for p in self.saved if p.name.casefold() != folded]
 
     def fill_from_bench(self):
+        """Asigna limpiamente jugadores en espera a los huecos libres de los equipos sin vaciar la banca."""
+        self.sanitize()
+        active_names = {a.name.strip().casefold() for a in self.active_players()}
         remaining: list[Player] = []
         for p in self.bench:
+            fn = p.name.strip().casefold()
+            if fn in active_names:
+                continue
             team_num = 0
             if p.fixed_team in (1, 2) and self.first_free_slot(p.fixed_team) is not None:
                 team_num = p.fixed_team
@@ -392,7 +455,12 @@ class Roster:
                     remaining.append(p)
                     continue
                 team_num = free[0]
-            self.set_slot(team_num, self.first_free_slot(team_num), p)
+            slot = self.first_free_slot(team_num)
+            if slot is not None:
+                self.set_slot(team_num, slot, p)
+                active_names.add(fn)
+            else:
+                remaining.append(p)
         self.bench = remaining
 
     def rotate_bench_and_teams(
@@ -403,13 +471,7 @@ class Roster:
         min_shield: int = 2,
         winner_team: int | None = None,
     ) -> tuple[int, int]:
-        """
-        Multi-Policy Continuous Fair Rotation Engine (SSOT).
-        Policies supported:
-        - "continuous": Default gradual conveyor belt (batch_size players rotate, Bo2 shield).
-        - "full_batch": Swaps all waiting bench players who fit.
-        - "winner_stays": The winning team stays intact, losing team rotates with bench.
-        """
+        self.sanitize()
         target_size = self.team_size * 2
         active = [p for p in self.active_players()]
         bench = list(self.bench)
@@ -427,7 +489,7 @@ class Roster:
         else:
             quota = max(1, min(batch_size, len(bench)))
 
-        # 2. Ranking de Entrada desde la Banca (Más tiempo esperando entra primero)
+        # 2. Ranking de Entrada desde la Banca
         bench_sorted = sorted(
             bench,
             key=lambda p: (getattr(p, "streak_benched", 0), -getattr(p, "streak_played", 0)),
@@ -436,17 +498,15 @@ class Roster:
         entering_from_bench = bench_sorted[:quota]
         remaining_bench = bench_sorted[quota:]
 
-        # 3. Clasificación de Jugadores Activos (Quiénes tienen escudo vs quiénes son elegibles para banca)
+        # 3. Clasificación de Jugadores Activos
         must_keep: list[Player] = []
         eligible_to_bench: list[Player] = []
 
         for p in active:
-            # Candado rígido de equipo
             if p.fixed_team in (1, 2):
                 must_keep.append(p)
                 continue
 
-            # Inmunidad Streamer 👑
             if getattr(p, "is_vip", False):
                 streak = getattr(p, "streak_played", 0)
                 if streamer_rest_interval > 0 and streak >= streamer_rest_interval:
@@ -455,14 +515,12 @@ class Roster:
                     must_keep.append(p)
                 continue
 
-            # Modo El Ganador se Queda: Equipo ganador protegido
             if policy == "winner_stays" and winner_team in (1, 2):
                 pos = self.slot_of(p)
                 if pos and pos[0] == winner_team:
                     must_keep.append(p)
                     continue
 
-            # Escudo Bo2: Permanencia mínima garantizada
             if getattr(p, "streak_played", 0) < min_shield:
                 must_keep.append(p)
                 continue
@@ -471,7 +529,6 @@ class Roster:
 
         needed_retention = max(0, target_size - len(entering_from_bench))
 
-        # Si el escudo retiene a demasiados, degradar suavemente a quienes más partidas lleven
         while len(must_keep) > needed_retention:
             relaxable = [
                 p for p in must_keep
@@ -484,17 +541,31 @@ class Roster:
             must_keep.remove(to_relax)
             eligible_to_bench.append(to_relax)
 
-        # Quien más partidas consecutivas lleve jugando, sale primero a la banca
         eligible_to_bench.sort(key=lambda p: getattr(p, "streak_played", 0), reverse=True)
 
         evict_count = len(entering_from_bench)
         leaving_to_bench = eligible_to_bench[:evict_count]
         staying_active = must_keep + eligible_to_bench[evict_count:]
 
-        selected_players = staying_active + entering_from_bench
-        unselected_players = remaining_bench + leaving_to_bench
+        # Blindaje Anti-Duplicados en Rotación
+        seen_names: set[str] = set()
+        clean_selected: list[Player] = []
+        for p in (staying_active + entering_from_bench):
+            fn = p.name.casefold()
+            if fn not in seen_names:
+                seen_names.add(fn)
+                clean_selected.append(p)
 
-        # Actualización de Rachas
+        clean_unselected: list[Player] = []
+        for p in (remaining_bench + leaving_to_bench):
+            fn = p.name.casefold()
+            if fn not in seen_names:
+                seen_names.add(fn)
+                clean_unselected.append(p)
+
+        selected_players = clean_selected
+        unselected_players = clean_unselected
+
         for p in selected_players:
             p.streak_played = getattr(p, "streak_played", 0) + 1
             p.streak_benched = 0
@@ -504,7 +575,6 @@ class Roster:
             p.streak_played = 0
             self._reset_for_bench(p)
 
-        # Distribución en celdas preservando candados
         t1: list[Player | None] = [None] * self.team_size
         t2: list[Player | None] = [None] * self.team_size
         unassigned: list[Player] = []
@@ -620,11 +690,16 @@ class Roster:
         if occupant is not None:
             occupant = self._reset_for_bench(occupant)
             self.set_slot(target_team, target_idx, player)
-            self.bench.remove(player)
+            if player in self.bench:
+                self.bench.remove(player)
+            existing_occ = self.find_bench(occupant.name)
+            if existing_occ:
+                self.bench.remove(existing_occ)
             self.bench.append(occupant)
             return f"'{player.name}' entra a Equipo {target_team}; '{occupant.name}' pasa a Zona de Espera."
         self.set_slot(target_team, target_idx, player)
-        self.bench.remove(player)
+        if player in self.bench:
+            self.bench.remove(player)
         return f"'{player.name}' entra a Equipo {target_team}."
 
     def on_game_mode_change(self, mode: GameMode):
@@ -657,13 +732,15 @@ class Roster:
     @classmethod
     def from_dict(cls, data: dict, mode: GameMode) -> Roster:
         file_mode = GameMode(data.get("mode", mode.value))
-        return cls(
+        roster = cls(
             game_mode=file_mode,
             team1_slots=[Player.from_dict(p) if p else None for p in data.get("team1", [])],
             team2_slots=[Player.from_dict(p) if p else None for p in data.get("team2", [])],
             bench=[cls._reset_for_bench(Player.from_dict(p)) for p in data.get("bench", [])],
             saved=[Player.from_dict(p) for p in data.get("saved", [])],
         )
+        roster.sanitize()
+        return roster
 
     @classmethod
     def empty(cls, mode: GameMode) -> Roster:
@@ -726,4 +803,6 @@ class Roster:
                         custom_color=p.custom_color,
                     )
                 )
-        return cls(game_mode=mode, team1_slots=t1, team2_slots=t2, bench=bench, saved=saved)
+        roster = cls(game_mode=mode, team1_slots=t1, team2_slots=t2, bench=bench, saved=saved)
+        roster.sanitize()
+        return roster

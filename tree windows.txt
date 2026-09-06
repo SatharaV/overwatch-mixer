@@ -1,0 +1,500 @@
+PS D:\User\Desktop\overwatch-mixer\owervach_tmixer> tree /F
+Folder PATH listing for volume NVME0
+Volume serial number is 00000013 1E5B:F86C
+D:.
+│   main.py
+│   utils.py
+│   __init__.py
+│
+├───assets
+│   │   check.svg
+│   │   chevron_down.svg
+│   │   chevron_down_dark.svg
+│   │   icon.svg
+│   │   overwatch-logo-dark.svg
+│   │   overwatch-logo-white.ico
+│   │   overwatch-logo-white.png
+│   │   overwatch-logo-white.svg
+│   │   overwatch_gear.svg
+│   │   ratammaker-logo-hehe.png
+│   │   role_damage.svg
+│   │   role_flex.svg
+│   │   role_support.svg
+│   │   role_tank.svg
+│   │   settings.svg
+│   │   settings_dark.svg
+│   │   tiermaker-logo.png
+│   │
+│   ├───Audios
+│   │   ├───cassidy
+│   │   │       cass_test0.wav
+│   │   │       cass_test1.wav
+│   │   │       cass_test10.wav
+│   │   │       cass_test11.wav
+│   │   │       cass_test12.wav
+│   │   │       cass_test13.wav
+│   │   │       cass_test14.wav
+│   │   │       cass_test15.wav
+│   │   │       cass_test16.wav
+│   │   │       cass_test17.wav
+│   │   │       cass_test2.wav
+│   │   │       cass_test2b.wav
+│   │   │       cass_test3.wav
+│   │   │       cass_test4.wav
+│   │   │       cass_test5.wav
+│   │   │       cass_test6.wav
+│   │   │       cass_test7.wav
+│   │   │       cass_test8.wav
+│   │   │       cass_test9.wav
+│   │   │
+│   │   ├───genji
+│   │   │       genji_extra1.wav
+│   │   │       genji_extra2.wav
+│   │   │       genji_extra3.wav
+│   │   │       genji_extra4.wav
+│   │   │       genji_extra5.wav
+│   │   │       genji_extra6.wav
+│   │   │       genji_test4.wav
+│   │   │       genji_test6.wav
+│   │   │       genji_tst1.wav
+│   │   │       genji_tst2.wav
+│   │   │       genji_tst3.wav
+│   │   │       genji_tst4.wav
+│   │   │       genji_tst5.wav
+│   │   │       genji_tst6.wav
+│   │   │       genji_tst7.wav
+│   │   │
+│   │   ├───juno
+│   │   │       juno_tst1.wav
+│   │   │       juno_tst2.wav
+│   │   │       juno_tst3.wav
+│   │   │       juno_tst4.wav
+│   │   │       juno_tst5.wav
+│   │   │       juno_tst6.wav
+│   │   │       juno_tst7.wav
+│   │   │
+│   │   └───mercy
+│   │           biejobribon.wav
+│   │           biejop.wav
+│   │           biejowey.wav
+│   │           mercy_audio-1.wav
+│   │           mercy_audio-2.wav
+│   │           mercy_audio-3.wav
+│   │           mercy_audio-4.wav
+│   │           mercy_audio-5.wav
+│   │           mercy_audio-6.wav
+│   │           mercy_audio-7.wav
+│   │           mercy_audio-8.wav
+│   │           mersi_tst0.wav
+│   │           mersi_tst3.wav
+│   │           mersi_tst4.wav
+│   │           mersi_tst5.wav
+│   │           mersi_tst6.wav
+│   │           mersi_tst7.wav
+│   │           mersi_tstt.wav
+│   │
+│   ├───Fonts
+│   │       bignoodletitlingrusbydaymarius.ttf
+│   │       bignoodletitling_oblique.ttf
+│   │       FuturaCyrillicBold.ttf
+│   │       FuturaCyrillicBook.ttf
+│   │       FuturaCyrillicDemi.ttf
+│   │       FuturaCyrillicExtraBold.ttf
+│   │       FuturaCyrillicHeavy.ttf
+│   │       FuturaCyrillicLight.ttf
+│   │       FuturaCyrillicMedium.ttf
+│   │
+│   ├───Heroes
+│   │       Ana.png
+│   │       Anran.png
+│   │       Ashe.png
+│   │       Baptiste.png
+│   │       Bastion.png
+│   │       Brigitte.png
+│   │       Cassidy.png
+│   │       D.mon.png
+│   │       D.va.png
+│   │       Domina.png
+│   │       Doomfist.png
+│   │       Echo.png
+│   │       Emre.png
+│   │       Freja.png
+│   │       Genji.png
+│   │       Hanzo.png
+│   │       Hazard.png
+│   │       Illari.png
+│   │       JetpackCat.png
+│   │       JunkerQueen.png
+│   │       Junkrat.png
+│   │       Juno.png
+│   │       Kiriko.png
+│   │       LifeWeaver.png
+│   │       Lucio.png
+│   │       Mauga.png
+│   │       Mei.png
+│   │       Mercy.png
+│   │       Mizuki.png
+│   │       Moira.png
+│   │       Orisa.png
+│   │       Pharah.png
+│   │       Ramattra.png
+│   │       Reaper.png
+│   │       Reinhardt.png
+│   │       Roadhog.png
+│   │       Shion.png
+│   │       Sierra.png
+│   │       Sigma.png
+│   │       Sojourn.png
+│   │       Soldier 76.png
+│   │       Sombra.png
+│   │       Symmetra.png
+│   │       Torbjorn.png
+│   │       Tracer.png
+│   │       Vendetta.png
+│   │       Venture.png
+│   │       Widowmaker.png
+│   │       Winston.png
+│   │       WreckingBall.png
+│   │       Wuyang.png
+│   │       Zarya.png
+│   │       Zenyatta.png
+│   │
+│   └───Maps
+│       ├───Assault
+│       │       Hanamura.jpg
+│       │       Horizon Lunar Colony.jpg
+│       │       Paris.jpg
+│       │       Temple of Anubis.jpg
+│       │       Volskaya Industries.jpg
+│       │
+│       ├───Clash
+│       │       Hanaoka.jpg
+│       │       Throne of Anubis.jpg
+│       │
+│       ├───Control
+│       │       Antarctic Peninsula.jpg
+│       │       Busan.jpg
+│       │       Ilios.jpg
+│       │       Lijiang Tower.jpg
+│       │       Nepal.jpg
+│       │       Oasis.jpg
+│       │       Samoa.jpg
+│       │
+│       ├───Escort
+│       │       Circuit Royal.jpg
+│       │       Dorado.jpg
+│       │       Havana.jpg
+│       │       Junkertown.jpg
+│       │       Rialto.jpg
+│       │       Route 66.jpg
+│       │       Shambali Monastery.jpg
+│       │       Watchpoint Gibraltar.jpg
+│       │
+│       ├───Flashpoint
+│       │       Aatlis.jpg
+│       │       New Junk City.jpg
+│       │       Suravasa.jpg
+│       │
+│       ├───Hybrid
+│       │       Blizzard World.jpg
+│       │       Eichenwalde.jpg
+│       │       Hollywood.jpg
+│       │       King's Row.jpg
+│       │       Midtown.jpg
+│       │       Neon Junction.jpg
+│       │       Numbani.jpg
+│       │       Paraíso.jpg
+│       │
+│       └───Push
+│               Colosseo.jpg
+│               Esperança.jpg
+│               New Queen Street.jpg
+│               Runasapi.jpg
+│
+├───core
+│   │   auto_mmr.py
+│   │   heroes.py
+│   │   history.py
+│   │   maps.py
+│   │   match_generator.py
+│   │   models.py
+│   │   roles.py
+│   │   roster.py
+│   │   settings.py
+│   │   shuffler.py
+│   │   shuffle_history.py
+│   │   special_player.py
+│   │   storage.py
+│   │   version.py
+│   │   __init__.py
+│   │
+│   └───__pycache__
+│           auto_mmr.cpython-311.pyc
+│           heroes.cpython-311.pyc
+│           history.cpython-311.pyc
+│           maps.cpython-311.pyc
+│           match_generator.cpython-311.pyc
+│           models.cpython-311.pyc
+│           roles.cpython-311.pyc
+│           roster.cpython-311.pyc
+│           settings.cpython-311.pyc
+│           shuffler.cpython-311.pyc
+│           shuffle_history.cpython-311.pyc
+│           special_player.cpython-311.pyc
+│           storage.cpython-311.pyc
+│           version.cpython-311.pyc
+│           __init__.cpython-311.pyc
+│
+├───data
+│       default_heroes.json
+│       default_maps.json
+│       default_settings.json
+│       version.json
+│
+├───ui
+│   │   audio_fx.py
+│   │   easter_eggs.py
+│   │   main_window.py
+│   │   __init__.py
+│   │
+│   ├───controllers
+│   │   │   match_controller.py
+│   │   │   roster_controller.py
+│   │   │   __init__.py
+│   │   │
+│   │   ├───roster
+│   │   │   │   bench_saved_operations.py
+│   │   │   │   dnd_operations.py
+│   │   │   │   slot_operations.py
+│   │   │   │   __init__.py
+│   │   │   │
+│   │   │   └───__pycache__
+│   │   │           bench_saved_operations.cpython-311.pyc
+│   │   │           bench_saved_operations.cpython-314.pyc
+│   │   │           dnd_operations.cpython-311.pyc
+│   │   │           dnd_operations.cpython-314.pyc
+│   │   │           slot_operations.cpython-311.pyc
+│   │   │           slot_operations.cpython-314.pyc
+│   │   │           __init__.cpython-311.pyc
+│   │   │           __init__.cpython-314.pyc
+│   │   │
+│   │   └───__pycache__
+│   │           match_controller.cpython-311.pyc
+│   │           match_controller.cpython-314.pyc
+│   │           roster_controller.cpython-311.pyc
+│   │           roster_controller.cpython-314.pyc
+│   │           __init__.cpython-311.pyc
+│   │           __init__.cpython-314.pyc
+│   │
+│   ├───dialogs
+│   │   │   add_custom_dialog.py
+│   │   │   common_geometry.py
+│   │   │   error_dialog.py
+│   │   │   hero_tags_dialog.py
+│   │   │   player_properties_dialog.py
+│   │   │   settings_dialog.py
+│   │   │   __init__.py
+│   │   │
+│   │   ├───settings_tabs
+│   │   │   │   common.py
+│   │   │   │   tab_about.py
+│   │   │   │   tab_appearance.py
+│   │   │   │   tab_backup.py
+│   │   │   │   tab_content.py
+│   │   │   │   tab_gameplay.py
+│   │   │   │   __init__.py
+│   │   │   │
+│   │   │   └───__pycache__
+│   │   │           common.cpython-311.pyc
+│   │   │           common.cpython-314.pyc
+│   │   │           tab_about.cpython-311.pyc
+│   │   │           tab_about.cpython-314.pyc
+│   │   │           tab_appearance.cpython-311.pyc
+│   │   │           tab_appearance.cpython-314.pyc
+│   │   │           tab_backup.cpython-311.pyc
+│   │   │           tab_backup.cpython-314.pyc
+│   │   │           tab_content.cpython-311.pyc
+│   │   │           tab_content.cpython-314.pyc
+│   │   │           tab_gameplay.cpython-311.pyc
+│   │   │           tab_gameplay.cpython-314.pyc
+│   │   │           __init__.cpython-311.pyc
+│   │   │           __init__.cpython-314.pyc
+│   │   │
+│   │   ├───tags
+│   │   │   │   hero_tag_row.py
+│   │   │   │   tag_prompt_dialog.py
+│   │   │   │   __init__.py
+│   │   │   │
+│   │   │   └───__pycache__
+│   │   │           __init__.cpython-311.pyc
+│   │   │           __init__.cpython-314.pyc
+│   │   │
+│   │   └───__pycache__
+│   │           add_custom_dialog.cpython-311.pyc
+│   │           add_custom_dialog.cpython-314.pyc
+│   │           common_geometry.cpython-311.pyc
+│   │           common_geometry.cpython-314.pyc
+│   │           player_properties_dialog.cpython-311.pyc
+│   │           player_properties_dialog.cpython-314.pyc
+│   │           settings_dialog.cpython-311.pyc
+│   │           settings_dialog.cpython-314.pyc
+│   │           __init__.cpython-311.pyc
+│   │           __init__.cpython-314.pyc
+│   │
+│   ├───styles
+│   │   │   stylesheet.py
+│   │   │   stylesheet.qss
+│   │   │   theme.py
+│   │   │   theme_manager.py
+│   │   │   tokens.py
+│   │   │   __init__.py
+│   │   │
+│   │   ├───themes
+│   │   │   │   base.py
+│   │   │   │   material.py
+│   │   │   │   obsidian.py
+│   │   │   │   overwatch.py
+│   │   │   │   __init__.py
+│   │   │   │
+│   │   │   └───__pycache__
+│   │   │           base.cpython-311.pyc
+│   │   │           base.cpython-314.pyc
+│   │   │           material.cpython-311.pyc
+│   │   │           material.cpython-314.pyc
+│   │   │           obsidian.cpython-311.pyc
+│   │   │           obsidian.cpython-314.pyc
+│   │   │           overwatch.cpython-311.pyc
+│   │   │           overwatch.cpython-314.pyc
+│   │   │           __init__.cpython-311.pyc
+│   │   │           __init__.cpython-314.pyc
+│   │   │
+│   │   └───__pycache__
+│   │           stylesheet.cpython-314.pyc
+│   │           theme.cpython-311.pyc
+│   │           theme.cpython-314.pyc
+│   │           theme_manager.cpython-311.pyc
+│   │           theme_manager.cpython-314.pyc
+│   │           tokens.cpython-311.pyc
+│   │           tokens.cpython-314.pyc
+│   │           __init__.cpython-311.pyc
+│   │           __init__.cpython-314.pyc
+│   │
+│   ├───widgets
+│   │   │   bans_panel.py
+│   │   │   bench_panel.py
+│   │   │   dnd.py
+│   │   │   flow_layout.py
+│   │   │   glow_text_delegate.py
+│   │   │   header_bar.py
+│   │   │   hero_widget.py
+│   │   │   history_panel.py
+│   │   │   map_badge.py
+│   │   │   map_card.py
+│   │   │   map_drawer.py
+│   │   │   map_widget.py
+│   │   │   marquee_label.py
+│   │   │   match_display.py
+│   │   │   match_map_banner.py
+│   │   │   mode_toggle.py
+│   │   │   player_slot.py
+│   │   │   player_slot_menu.py
+│   │   │   roster_dock.py
+│   │   │   saved_panel.py
+│   │   │   scrollable_pills.py
+│   │   │   settings_panel.py
+│   │   │   smooth_scroll.py
+│   │   │   team_display.py
+│   │   │   tier_maker.py
+│   │   │   toast.py
+│   │   │   vector_button.py
+│   │   │   __init__.py
+│   │   │
+│   │   ├───hero
+│   │   │   │   hero_card.py
+│   │   │   │   __init__.py
+│   │   │   │
+│   │   │   └───__pycache__
+│   │   │           hero_card.cpython-311.pyc
+│   │   │           hero_card.cpython-314.pyc
+│   │   │           __init__.cpython-311.pyc
+│   │   │           __init__.cpython-314.pyc
+│   │   │
+│   │   ├───tier
+│   │   │   │   tier_canvas.py
+│   │   │   │   tier_card.py
+│   │   │   │   tier_row.py
+│   │   │   │   __init__.py
+│   │   │   │
+│   │   │   └───__pycache__
+│   │   │           tier_canvas.cpython-311.pyc
+│   │   │           tier_canvas.cpython-314.pyc
+│   │   │           tier_card.cpython-311.pyc
+│   │   │           tier_card.cpython-314.pyc
+│   │   │           tier_row.cpython-311.pyc
+│   │   │           tier_row.cpython-314.pyc
+│   │   │           __init__.cpython-311.pyc
+│   │   │           __init__.cpython-314.pyc
+│   │   │
+│   │   └───__pycache__
+│   │           bans_panel.cpython-311.pyc
+│   │           bans_panel.cpython-314.pyc
+│   │           bench_panel.cpython-311.pyc
+│   │           bench_panel.cpython-314.pyc
+│   │           dnd.cpython-311.pyc
+│   │           dnd.cpython-314.pyc
+│   │           flow_layout.cpython-311.pyc
+│   │           flow_layout.cpython-314.pyc
+│   │           glow_text_delegate.cpython-314.pyc
+│   │           header_bar.cpython-311.pyc
+│   │           header_bar.cpython-314.pyc
+│   │           hero_widget.cpython-311.pyc
+│   │           hero_widget.cpython-314.pyc
+│   │           history_panel.cpython-311.pyc
+│   │           history_panel.cpython-314.pyc
+│   │           map_card.cpython-311.pyc
+│   │           map_card.cpython-314.pyc
+│   │           map_drawer.cpython-311.pyc
+│   │           map_drawer.cpython-314.pyc
+│   │           map_widget.cpython-311.pyc
+│   │           map_widget.cpython-314.pyc
+│   │           marquee_label.cpython-311.pyc
+│   │           marquee_label.cpython-314.pyc
+│   │           match_display.cpython-311.pyc
+│   │           match_display.cpython-314.pyc
+│   │           match_map_banner.cpython-311.pyc
+│   │           match_map_banner.cpython-314.pyc
+│   │           mode_toggle.cpython-311.pyc
+│   │           mode_toggle.cpython-314.pyc
+│   │           player_slot.cpython-311.pyc
+│   │           player_slot.cpython-314.pyc
+│   │           player_slot_menu.cpython-311.pyc
+│   │           player_slot_menu.cpython-314.pyc
+│   │           roster_dock.cpython-311.pyc
+│   │           roster_dock.cpython-314.pyc
+│   │           saved_panel.cpython-311.pyc
+│   │           saved_panel.cpython-314.pyc
+│   │           scrollable_pills.cpython-311.pyc
+│   │           scrollable_pills.cpython-314.pyc
+│   │           smooth_scroll.cpython-311.pyc
+│   │           smooth_scroll.cpython-314.pyc
+│   │           team_display.cpython-311.pyc
+│   │           team_display.cpython-314.pyc
+│   │           tier_maker.cpython-311.pyc
+│   │           tier_maker.cpython-314.pyc
+│   │           toast.cpython-311.pyc
+│   │           toast.cpython-314.pyc
+│   │           vector_button.cpython-311.pyc
+│   │           vector_button.cpython-314.pyc
+│   │           __init__.cpython-311.pyc
+│   │           __init__.cpython-314.pyc
+│   │
+│   └───__pycache__
+│           audio_fx.cpython-311.pyc
+│           easter_eggs.cpython-311.pyc
+│           main_window.cpython-311.pyc
+│           __init__.cpython-311.pyc
+│
+└───__pycache__
+        main.cpython-311.pyc
+        utils.cpython-311.pyc
+        __init__.cpython-311.pyc

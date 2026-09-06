@@ -121,7 +121,6 @@ class DndOperationsMixin:
 
         team_num = target_team if target_team in (1, 2) else 0
 
-        # Transición fluida: Si ya estaba en la Zona de Espera, retirarlo atómicamente antes de añadirlo al equipo
         was_in_bench = bench_p is not None
         if was_in_bench:
             self.roster.remove_from_bench(name)
