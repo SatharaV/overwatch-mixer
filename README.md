@@ -48,15 +48,15 @@ El sistema de MMR intenta estimar el nivel de cada jugador usando un modelo **Ba
 * rol jugado
 * historial individual
 
-La idea es que este valor se vaya ajustando con el tiempo según los resultados reales, en lugar de depender únicamente de un número que alguien escribió a mano y decidió que "más o menos debería estar bien".
+La idea es que el valor se vaya ajustando con el tiempo en lugar de depender únicamente de un número que alguien escribió a mano.
 
 ¿Es un sistema perfecto?
 
 No.
 
-¿Es mejor que poner "AlgúnTontínFJ Probablemente es Muy Bueno" y que el sistema se lo crea para siempre?
+¿Es mejor que poner "AlgúnFulanoFJ = probablemente bueno"?
 
-También puede ser. Honestamente, tampoco era una vara muy alta.
+También puede ser.
 
 ### 🗺️ Mapas
 
@@ -96,7 +96,7 @@ Se ha intentado mantener la interfaz fluida y el consumo de recursos razonable.
 
 Los números bonitos de rendimiento están ahí arriba en los badges.
 
-No se los tomen muy en serio.
+Tómeselos con la misma seriedad con la que toma sus decisiones el matchmaking de Overwatch.
 
 ---
 
@@ -108,136 +108,54 @@ Vas a **Releases**, descargas el ejecutable y ejecutas.
 
 Según yo eso es todo.
 
-## Descarga — Linux
-
-Vas a **Releases**, descargas el appimage y ejecutas, eso es todo.
-
 ---
 
-## 🛠️ Instalación y Ejecución desde Código Fuente
+## Instalación desde código fuente
 
-Si deseas ejecutar, modificar o compilar el proyecto directamente desde el código fuente, sigue los pasos correspondientes a tu sistema operativo.
-
-### 📋 Requisitos Previos
-* **Python 3.10 o superior** (Recomendado: Python 3.11 a 3.14).
-* **Git** instalado en el sistema.
-
----
-
-### 1. Clonar el Repositorio
-
-Abre tu terminal favorita y clona el proyecto:
+Para quien quiera ejecutar el proyecto directamente desde Python:
 
 ```bash
-git clone https://github.com/SatharaV/overwatch-mixer.git
-cd overwatch-mixer
-```
+git clone https://github.com/TU-USUARIO/overwatch-team-mixer.git
+cd overwatch-team-mixer
 
----
-
-### 2. Configuración del Entorno Virtual y Dependencias
-
-#### 🐧 En Linux (Arch, Ubuntu, Fedora, CachyOS, etc.)
-
-Crea el entorno virtual:
-```bash
 python -m venv venv
 ```
 
-Activa el entorno virtual según tu shell:
+Active el entorno virtual e instale las dependencias:
 
-* **En Bash o Zsh:**
-  ```bash
-  source venv/bin/activate
-  ```
-
-* **En Fish Shell:**
-  ```fish
-  source venv/bin/activate.fish
-  ```
-
-Instala las dependencias:
 ```bash
 pip install -r requirements.txt
 ```
 
----
-
-#### 🪟 En Windows (10 / 11)
-
-Crea el entorno virtual:
-```cmd
-python -m venv venv
-```
-
-Activa el entorno virtual según tu consola:
-
-* **En PowerShell:**
-  > *Nota: Si PowerShell te muestra un error de políticas de ejecución de scripts, ejecuta primero:*  
-  > `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
-  ```powershell
-  .\venv\Scripts\Activate.ps1
-  ```
-
-* **En Símbolo del Sistema (CMD):**
-  ```cmd
-  venv\Scripts\activate.bat
-  ```
-
-Instala las dependencias:
-```bash
-pip install -r requirements.txt
-```
-
----
-
-### 3. Ejecutar la Aplicación
-
-Con el entorno virtual activado (`(venv)` al inicio de tu línea de comandos):
+Ejecute la aplicación:
 
 ```bash
 python -m owervach_tmixer.main
 ```
 
-> **Tip:** En Linux también puedes lanzarlo directamente sin activar el entorno con:  
-> `./venv/bin/python -m owervach_tmixer.main`
-
----
-
-### 🧪 Suite de Pruebas Automatizadas
-
-La aplicación cuenta con una estricta suite de pruebas unitarias e integrales que validan la persistencia atómica, el motor de MMR bayesiano, los algoritmos de mezcla y la interfaz gráfica.
-
-Para ejecutar los tests con el entorno virtual activo:
+Para correr las pruebas:
 
 ```bash
 pytest
 ```
 
-> **Métrica de calidad:** La suite completa debe finalizar con **153/153 pruebas en verde** (`100% passing`) en aproximadamente **40 a 60 segundos**.
+Actualmente la suite cuenta con **153 pruebas**.
+
+Sí, las hice.
+
+No, no recuerdo para qué sirven todas.
 
 ---
 
-### 📦 Compilación y Empaquetado (`build.py`)
+## Compilación
 
-El proyecto incluye un script de compilación inteligente multiplataforma que detecta tu sistema operativo y empaqueta el software en un solo comando:
+Para generar el ejecutable standalone:
 
 ```bash
 python build.py
 ```
 
-* **En Windows:** Genera un ejecutable autónomo optimizado (`dist/Overwatch-Mixer.exe`, ~72 MB) con ícono nítido y temporizador multimedia a 1 ms.
-* **En Linux:** Genera el binario nativo y empaqueta automáticamente el **`.AppImage` oficial para Gearlever / KDE Plasma / GNOME** en `dist/Overwatch-Mixer-x86_64.AppImage`, con metadatos de versión (`v1.1.0`), ícono PNG de 256x256 e integración con el sistema.
-* **El resultado** será un **ejecutable listo para distribuir sin necesidad de instalar Python ni cosas extra**, la intención siempre fue hacer una aplicación independiente y offline lista para usar.
-
----
-
-### 🎯 Puntos clave que soluciona esta documentación:
-1. **Rutas y Enlaces Actualizados:** Enlaza al nuevo repositorio oficial `https://github.com/SatharaV/overwatch-mixer.git`.
-2. **Fish Shell vs Bash:** Aclara el uso de `.activate.fish` para que nadie en Linux se tope con el `Unknown command` que experimentaste.
-3. **PowerShell en Windows:** Incluye la instrucción de `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`, que es el error #1 por el cual la gente en Windows no puede activar `venv`.
-4. **Instrucción de Compilación:** Explica cómo usar `build.py` tanto para el `.exe` como para el `.AppImage` de Gearlever.
-5. **Métricas Verídicas:** Refleja con precisión los **153/153 tests en 40-60s**. Sí, las hice. No, no recuerdo para qué sirven todas.
+El resultado será un ejecutable listo para distribuir sin necesidad de instalar Python (si lo compilas en linux creo que funciona nativo (no hay garantías (sí puse parentesís entre parentesís))).
 
 ---
 
@@ -247,6 +165,8 @@ python build.py
 
 **Desarrollo:** Asistido por Inteligencia Artificial
 
-**Licencia:** MIT Puede usarse, modificarse y distribuirse libremente sin restricciones.
+**Licencia:** MIT
 
-**Disclaimer:** El equipo de desarrollo no se hace responsable por el mal funcionamiento, uso indebido o consecuencias derivadas del uso de este software, incluyendo fraudes, pérdida de información o daños a sistemas y/o equipos. En cualquier caso, este software no cuenta con la capacidad técnica para causar daños de ese tipo.
+Puede usarse, modificarsey distribuirse libremente.
+
+No me hago responsable de equipos injustos, discusiones por MMR ni de que alguien diga "ese algoritmo no sirve" después de perder.
