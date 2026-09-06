@@ -104,9 +104,7 @@ Los números bonitos de rendimiento están ahí arriba en los badges.
 
 No necesita instalar Python ni configurar nada.
 
-Vas a **Releases**, descargas el ejecutable y ejecutas.
-
-Según yo eso es todo.
+Vas a **Releases**, descargas el que dice windows, abres con doble click y ejecutas.
 
 ## Descarga — Linux
 
