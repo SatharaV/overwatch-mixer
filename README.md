@@ -54,7 +54,7 @@ La idea es que este valor se vaya ajustando con el tiempo según los resultados 
 
 No.
 
-¿Es mejor que poner una variable con valor: "AlgúnTontínFJ Se ve que es Bueno" y que el sistema se lo crea para siempre?
+¿Es mejor que poner una variable con valor: "AlgúnTontínFJ se ve que si le sabe" y que el sistema se lo crea para siempre?
 
 Según mis cálculos es probable que sí.
 
