@@ -153,6 +153,35 @@ def build_roles_bans_tab(dialog, layout: QVBoxLayout):
     form_bans.addRow("Filas visibles de baneos:", dialog.spin_bans_rows)
     layout.addWidget(box_bans)
 
+    box_draft = create_card_box("Configuración de Draft Obligatorio")
+    form_draft = QFormLayout(box_draft)
+    form_draft.setSpacing(10)
+
+    dialog.spin_draft_per_team = QSpinBox()
+    dialog.spin_draft_per_team.setRange(1, 6)
+    dialog.spin_draft_per_team.setValue(5)
+    form_draft.addRow("Héroes por equipo:", dialog.spin_draft_per_team)
+
+    dialog.spin_draft_tank = QSpinBox()
+    dialog.spin_draft_tank.setRange(0, 4)
+    dialog.spin_draft_tank.setValue(1)
+    form_draft.addRow("🛡️ Máximo Tanques:", dialog.spin_draft_tank)
+
+    dialog.spin_draft_damage = QSpinBox()
+    dialog.spin_draft_damage.setRange(0, 5)
+    dialog.spin_draft_damage.setValue(2)
+    form_draft.addRow("⚔️ Máximo Daño:", dialog.spin_draft_damage)
+
+    dialog.spin_draft_support = QSpinBox()
+    dialog.spin_draft_support.setRange(0, 5)
+    dialog.spin_draft_support.setValue(2)
+    form_draft.addRow("💖 Máximo Apoyo:", dialog.spin_draft_support)
+
+    dialog.chk_draft_mirror = QCheckBox("Permitir héroes repetidos en ambos equipos (Espejo)")
+    dialog.chk_draft_mirror.setStyleSheet("color: #FFFFFF; font-weight: 700; font-size: 12px;")
+    form_draft.addRow("", dialog.chk_draft_mirror)
+    layout.addWidget(box_draft)
+
 
 def build_maps_tab(dialog, layout: QVBoxLayout):
     box_pool = create_card_box("Sorteo y Selección de Mapas")

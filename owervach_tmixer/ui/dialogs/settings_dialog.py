@@ -630,6 +630,12 @@ class SettingsDialog(QDialog, PersistentGeometryMixin):
         self.spin_portrait_size.setValue(getattr(s, "ban_portrait_size", 48))
         if hasattr(self, "spin_bans_rows"):
             self.spin_bans_rows.setValue(getattr(s, "bans_visible_rows", 2))
+        if hasattr(self, "spin_draft_per_team"):
+            self.spin_draft_per_team.setValue(getattr(s, "draft_heroes_per_team", 5))
+            self.spin_draft_tank.setValue(getattr(s, "draft_max_tank", 1))
+            self.spin_draft_damage.setValue(getattr(s, "draft_max_damage", 2))
+            self.spin_draft_support.setValue(getattr(s, "draft_max_support", 2))
+            self.chk_draft_mirror.setChecked(getattr(s, "draft_allow_mirror", True))
 
         self.edit_team1.setText(s.team1_name)
         self.edit_team2.setText(s.team2_name)
@@ -1034,6 +1040,12 @@ class SettingsDialog(QDialog, PersistentGeometryMixin):
         s.ban_portrait_size = self.spin_portrait_size.value()
         if hasattr(self, "spin_bans_rows"):
             s.bans_visible_rows = self.spin_bans_rows.value()
+        if hasattr(self, "spin_draft_per_team"):
+            s.draft_heroes_per_team = self.spin_draft_per_team.value()
+            s.draft_max_tank = self.spin_draft_tank.value()
+            s.draft_max_damage = self.spin_draft_damage.value()
+            s.draft_max_support = self.spin_draft_support.value()
+            s.draft_allow_mirror = self.chk_draft_mirror.isChecked()
 
         s.team1_name = self.edit_team1.text()
         s.team2_name = self.edit_team2.text()

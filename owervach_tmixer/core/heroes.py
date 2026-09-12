@@ -50,6 +50,43 @@ class HeroManager:
         self.ban_manager.randomize_bans()
         return self.get_banned()
 
+    def generate_draft(
+        self,
+        heroes_per_team: int = 5,
+        max_tank: int = 1,
+        max_damage: int = 2,
+        max_support: int = 2,
+        allow_mirror: bool = True,
+    ) -> tuple[list[str], list[str]]:
+        """Genera una lista de héroes sorteados para el Equipo 1 y el Equipo 2 respetando cupos y roles."""
+        import random
+
+        def _pick_team_draft(available_heroes: list[Hero]) -> list[str]:
+            picked: list[str] = []
+            counts = {Role.TANK: 0, Role.DAMAGE: 0, Role.SUPPORT: 0}
+            caps = {Role.TANK: max_tank, Role.DAMAGE: max_damage, Role.SUPPORT: max_support}
+
+            shuffled = list(available_heroes)
+            random.shuffle(shuffled)
+
+            for h in shuffled:
+                if len(picked) >= heroes_per_team:
+                    break
+                if counts[h.role] < caps[h.role]:
+                    picked.append(h.name)
+                    counts[h.role] += 1
+            return picked
+
+        team1 = _pick_team_draft(self.heroes)
+
+        if allow_mirror:
+            team2 = _pick_team_draft(self.heroes)
+        else:
+            remaining = [h for h in self.heroes if h.name not in team1]
+            team2 = _pick_team_draft(remaining)
+
+        return team1, team2
+
     def get_heroes_by_role(self, role: Optional[Role] = None) -> List[Hero]:
         if role is None:
             return self.heroes

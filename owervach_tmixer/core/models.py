@@ -389,6 +389,12 @@ class MatchSettings:
     rotation_policy: str = "continuous"
     rotation_batch_size: int = 2
     min_matches_shield: int = 2
+    hero_restriction_mode: str = "bans"  # "bans" | "draft"
+    draft_heroes_per_team: int = 5
+    draft_max_tank: int = 1
+    draft_max_damage: int = 2
+    draft_max_support: int = 2
+    draft_allow_mirror: bool = True
 
     def composition_for_mode(self) -> TeamComposition:
         if self.game_mode == GameMode.FIVE_V_FIVE:
@@ -455,6 +461,12 @@ class MatchSettings:
             "rotation_policy": getattr(self, "rotation_policy", "continuous"),
             "rotation_batch_size": getattr(self, "rotation_batch_size", 2),
             "min_matches_shield": getattr(self, "min_matches_shield", 2),
+            "hero_restriction_mode": getattr(self, "hero_restriction_mode", "bans"),
+            "draft_heroes_per_team": getattr(self, "draft_heroes_per_team", 5),
+            "draft_max_tank": getattr(self, "draft_max_tank", 1),
+            "draft_max_damage": getattr(self, "draft_max_damage", 2),
+            "draft_max_support": getattr(self, "draft_max_support", 2),
+            "draft_allow_mirror": getattr(self, "draft_allow_mirror", True),
         }
 
     @classmethod
@@ -522,6 +534,12 @@ class MatchSettings:
             rotation_policy=data.get("rotation_policy", "continuous"),
             rotation_batch_size=data.get("rotation_batch_size", 2),
             min_matches_shield=data.get("min_matches_shield", 2),
+            hero_restriction_mode=data.get("hero_restriction_mode", "bans"),
+            draft_heroes_per_team=data.get("draft_heroes_per_team", 5),
+            draft_max_tank=data.get("draft_max_tank", 1),
+            draft_max_damage=data.get("draft_max_damage", 2),
+            draft_max_support=data.get("draft_max_support", 2),
+            draft_allow_mirror=data.get("draft_allow_mirror", True),
         )
 
 
@@ -533,6 +551,8 @@ class Match:
     team2: Team
     map: Map | None = None
     bans: list[str] = field(default_factory=list)
+    team1_draft: list[str] = field(default_factory=list)
+    team2_draft: list[str] = field(default_factory=list)
     winner: int | None = None  # 1 for Team 1, 2 for Team 2, 0 for Draw, None for unplayed
     timestamp: datetime = field(default_factory=datetime.now)
     settings_snapshot: MatchSettings | None = None
@@ -543,6 +563,8 @@ class Match:
             "team2": self.team2.to_dict(),
             "map": self.map.to_dict() if self.map else None,
             "bans": self.bans,
+            "team1_draft": self.team1_draft,
+            "team2_draft": self.team2_draft,
             "winner": self.winner,
             "timestamp": self.timestamp.isoformat(),
             "settings_snapshot": self.settings_snapshot.to_dict()
@@ -562,6 +584,8 @@ class Match:
             team2=Team.from_dict(data["team2"]),
             map=Map.from_dict(data["map"]) if data.get("map") else None,
             bans=data.get("bans", []),
+            team1_draft=data.get("team1_draft", []),
+            team2_draft=data.get("team2_draft", []),
             winner=data.get("winner"),
             timestamp=datetime.fromisoformat(data["timestamp"]),
             settings_snapshot=settings,

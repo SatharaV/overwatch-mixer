@@ -221,6 +221,7 @@ class MainWindow(QMainWindow):
         from owervach_tmixer.ui.widgets.bans_panel import BansPanel
         self.bans_panel = BansPanel(self.side_panel)
         self.bans_panel.randomize_requested.connect(self._randomize_bans_from_main)
+        self.bans_panel.mode_changed.connect(self._on_hero_restriction_mode_changed)
         self.bans_panel.set_portrait_size(
             getattr(self.settings_manager.settings, "ban_portrait_size", 44)
         )
@@ -518,6 +519,11 @@ class MainWindow(QMainWindow):
         self.hero_manager.ban_manager.banned = self.hero_widget.get_banned()
         self.bans_panel.set_banned(sorted(bans_data.banned))
 
+        # Sincronizar modo baneos/draft persistido con el panel
+        self.bans_panel.set_mode(
+            getattr(settings, "hero_restriction_mode", "bans"), emit=False
+        )
+
         self._apply_settings_to_widgets()
         if hasattr(self, "tier_maker"):
             self.tier_maker.reload_bank()
@@ -561,6 +567,8 @@ class MainWindow(QMainWindow):
         self.bans_panel.set_portrait_size(getattr(s, "ban_portrait_size", 44))
         if hasattr(self.bans_panel, "set_visible_rows"):
             self.bans_panel.set_visible_rows(getattr(s, "bans_visible_rows", 3))
+        if hasattr(self.bans_panel, "set_mode"):
+            self.bans_panel.set_mode(getattr(s, "hero_restriction_mode", "bans"), emit=False)
 
         self.match_display.set_font_preferences(
             getattr(s, "slot_font_size", 13),
@@ -752,6 +760,9 @@ class MainWindow(QMainWindow):
 
     def _randomize_bans_from_main(self):
         self.match_controller.randomize_bans_from_main()
+
+    def _on_hero_restriction_mode_changed(self, mode: str):
+        self.match_controller.on_hero_restriction_mode_changed(mode)
 
     def _on_bans_changed(self, banned: set):
         self.match_controller.on_bans_changed(banned)

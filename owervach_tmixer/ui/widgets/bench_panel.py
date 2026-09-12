@@ -437,6 +437,10 @@ class BenchPanel(QFrame):
                 background-color: {t.bg_surface};
                 border: none;
             }}
+            QWidget#benchGrid QLabel {{
+                background-color: transparent;
+                border: none;
+            }}
         """)
 
         if is_ow:

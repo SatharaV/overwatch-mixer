@@ -28,5 +28,11 @@
   "dnd_cross_team_swap": true,
   "ban_portrait_size": 44,
   "bans_visible_rows": 3,
-  "tier_export_ratio": "16:9"
+  "tier_export_ratio": "16:9",
+  "hero_restriction_mode": "bans",
+  "draft_heroes_per_team": 5,
+  "draft_max_tank": 1,
+  "draft_max_damage": 2,
+  "draft_max_support": 2,
+  "draft_allow_mirror": true
 }

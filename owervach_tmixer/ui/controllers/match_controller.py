@@ -110,7 +110,6 @@ class MatchController:
             )
             if p_in > 0:
                 self.win.roster_controller.after_roster_change()
-                self.win.show_toast(f"🔄 Rotación ({p_in} entran, {p_out} a espera)", "info")
 
         active = roster.active_players()
         if len(active) < needed and roster.bench:
@@ -176,8 +175,27 @@ class MatchController:
                 else self.win.match_display.map_banner.get_map()
             )
 
-        # Si auto_bans está activo, sortear nuevos baneos y verificar Audio FX
-        if settings.auto_bans:
+        # Restriction Mode: "draft" sortea pools por equipo; "bans" mantiene flujo clásico
+        team1_draft: list[str] = []
+        team2_draft: list[str] = []
+        if getattr(settings, "hero_restriction_mode", "bans") == "draft":
+            t1_draft, t2_draft = self.win.hero_manager.generate_draft(
+                heroes_per_team=settings.draft_heroes_per_team,
+                max_tank=settings.draft_max_tank,
+                max_damage=settings.draft_max_damage,
+                max_support=settings.draft_max_support,
+                allow_mirror=settings.draft_allow_mirror,
+            )
+            team1_draft, team2_draft = t1_draft, t2_draft
+            bans_list: list[str] = []
+            self.win.bans_panel.set_draft(
+                t1_draft, t2_draft,
+                self.win.match_display.team1_widget.get_team_name(),
+                self.win.match_display.team2_widget.get_team_name(),
+            )
+            if hasattr(self.win.bans_panel, "set_mode"):
+                self.win.bans_panel.set_mode("draft", emit=False)
+        elif settings.auto_bans:
             bans_list = self._get_random_bans_with_trinity_chance()
             self.win.hero_widget.set_banned(set(bans_list))
             self.win.bans_panel.set_banned(bans_list)
@@ -189,6 +207,8 @@ class MatchController:
             team2=result.team2,
             map=chosen_map,
             bans=bans_list,
+            team1_draft=team1_draft,
+            team2_draft=team2_draft,
             settings_snapshot=settings,
         )
 
@@ -272,6 +292,8 @@ class MatchController:
             team2=result.team2,
             map=result.map,
             bans=result.bans,
+            team1_draft=self.win._current_match.team1_draft,
+            team2_draft=self.win._current_match.team2_draft,
             settings_snapshot=settings,
         )
 
@@ -421,11 +443,61 @@ class MatchController:
         return list(self.win.hero_manager.get_banned())
 
     def randomize_bans_from_main(self):
-        """Unified ban randomization shortcut from main interface with 5% Trinity chance."""
+        """Unified randomization shortcut from the panel 🎲 button: bans or draft by active mode."""
+        if getattr(self.win.settings_manager.settings, "hero_restriction_mode", "bans") == "draft":
+            self.randomize_draft()
+            return
+
         new_bans = self._get_random_bans_with_trinity_chance()
         self.win.hero_widget.set_banned(set(new_bans))
         self.on_bans_changed(set(new_bans))
         play_ban_sound_for_pool(new_bans, window=self.win)
+
+    def randomize_draft(self):
+        """Sortea un nuevo draft con la configuración activa y lo aplica a la partida actual."""
+        settings = self.win.settings_manager.settings
+        t1_draft, t2_draft = self.win.hero_manager.generate_draft(
+            heroes_per_team=settings.draft_heroes_per_team,
+            max_tank=settings.draft_max_tank,
+            max_damage=settings.draft_max_damage,
+            max_support=settings.draft_max_support,
+            allow_mirror=settings.draft_allow_mirror,
+        )
+        self.win.bans_panel.set_draft(
+            t1_draft, t2_draft,
+            self.win.match_display.team1_widget.get_team_name(),
+            self.win.match_display.team2_widget.get_team_name(),
+        )
+        if self.win._current_match is not None:
+            self.win._current_match.team1_draft = t1_draft
+            self.win._current_match.team2_draft = t2_draft
+            self.win.match_display.set_match(self.win._current_match)
+        self.win.status_bar.showMessage("Draft de héroes sorteado", 3000)
+
+    def on_hero_restriction_mode_changed(self, mode: str):
+        """Sincroniza el modo baneos/draft hacia settings conservando bans y drafts del Match."""
+        settings = self.win.settings_manager.settings
+        settings.hero_restriction_mode = mode if mode in ("bans", "draft") else "bans"
+        self.win.settings_manager.save()
+
+        match = self.win._current_match
+        if settings.hero_restriction_mode == "draft":
+            if match and getattr(match, "team1_draft", None):
+                # Draft previo guardado: sincronizarlo al panel sin vaciar nada
+                self.win.bans_panel.set_draft(
+                    match.team1_draft,
+                    match.team2_draft,
+                    self.win.match_display.team1_widget.get_team_name(),
+                    self.win.match_display.team2_widget.get_team_name(),
+                )
+            elif self.win.roster_controller.roster.active_players():
+                # Sin draft previo pero con jugadores activos: generar el inicial
+                self.randomize_draft()
+
+        self.win.status_bar.showMessage(
+            "Modo héroes: Baneos" if settings.hero_restriction_mode == "bans" else "Modo héroes: Draft",
+            3000,
+        )
 
 
     def on_bans_changed(self, banned: set):
@@ -511,11 +583,44 @@ class MatchController:
         self.win.settings_manager.update_game_mode(mode)
         roster.on_game_mode_change(mode)
         self.adapt_pinned_roles_to_mode()
+        self._sync_draft_caps_to_game_mode(mode)
         if before != mode:
             self.win.roster_controller.after_roster_change(refresh_saved=False)
         else:
             self.win.roster_controller.refresh_roster_ui()
         self.win.status_bar.showMessage(f"Modo: {mode.value}", 3000)
+
+    def _sync_draft_caps_to_game_mode(self, mode: GameMode):
+        """Paridad al vuelo 5v5 ⮂ 6v6: ajusta cupo y topes por rol del draft automáticamente."""
+        settings = self.win.settings_manager.settings
+        if mode == GameMode.SIX_V_SIX:
+            expected = (6, 2, 2, 2)
+        else:
+            expected = (5, 1, 2, 2)
+
+        changed = (
+            settings.draft_heroes_per_team != expected[0]
+            or settings.draft_max_tank != expected[1]
+            or settings.draft_max_damage != expected[2]
+            or settings.draft_max_support != expected[3]
+        )
+        if not changed:
+            return
+
+        settings.draft_heroes_per_team = expected[0]
+        settings.draft_max_tank = expected[1]
+        settings.draft_max_damage = expected[2]
+        settings.draft_max_support = expected[3]
+        self.win.settings_manager.save()
+
+        # Si ya hay un draft generado, re-sortear con el nuevo cupo y refrescar altura
+        if self.win._current_match and (
+            getattr(self.win._current_match, "team1_draft", None)
+            or getattr(self.win._current_match, "team2_draft", None)
+        ):
+            self.randomize_draft()
+        if hasattr(self.win.bans_panel, "_adjust_panel_height"):
+            self.win.bans_panel._adjust_panel_height()
 
     def adapt_pinned_roles_to_mode(self):
         s = self.win.settings_manager.settings
@@ -647,6 +752,8 @@ class MatchController:
         self.win.hero_widget.set_heroes(heroes)
         self.win.hero_widget.set_banned(set())
         self.win.bans_panel.set_banned([])
+        if hasattr(self.win.bans_panel, "set_draft"):
+            self.win.bans_panel.set_draft([], [])
         self.win.match_display.set_match(None)
         self.win.match_display.set_map(None)
         self.win.history_panel._refresh()

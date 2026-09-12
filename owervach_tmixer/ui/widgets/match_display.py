@@ -427,8 +427,30 @@ class MatchDisplayWidget(QWidget):
         if current_map:
             lines.append(f"🗺️ **Mapa:** {current_map.name} ({current_map.mode})")
 
-        if self._current_match and self._current_match.bans:
-            lines.append(f"⛔ **Baneos:** {', '.join(self._current_match.bans)}")
+        match = self._current_match
+        is_draft = False
+        if match is not None:
+            parent_win = self.window()
+            settings = getattr(parent_win, "settings_manager", None)
+            is_draft = (
+                getattr(settings.settings, "hero_restriction_mode", "bans") == "draft"
+                if settings else False
+            ) or bool(
+                getattr(match, "team1_draft", None) or getattr(match, "team2_draft", None)
+            )
+
+        if is_draft:
+            lines.append("🎲 **DRAFT OBLIGATORIO DE HÉROES:**")
+            t1_name = self.team1_widget.get_team_name()
+            t2_name = self.team2_widget.get_team_name()
+            t1_draft = list(getattr(match, "team1_draft", None) or [])
+            t2_draft = list(getattr(match, "team2_draft", None) or [])
+            if t1_draft:
+                lines.append(f"🔹 **{t1_name}:** {', '.join(t1_draft)}")
+            if t2_draft:
+                lines.append(f"🔸 **{t2_name}:** {', '.join(t2_draft)}")
+        elif match is not None and match.bans:
+            lines.append(f"⛔ **Baneos:** {', '.join(match.bans)}")
 
         if self._current_winner == 1:
             lines.append(f"🏆 **Ganador:** {self.team1_widget.get_team_name()}")
